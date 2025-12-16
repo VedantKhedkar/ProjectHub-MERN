@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// 1. User Model
+model User {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  email    String @unique
+  password String
+  contact  String?
+  status   String @default("Pending")
+  projects    Project[]
+  buyRequests BuyRequest[]
+  payments    Payment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 2. Project Model (Custom Projects)
+model Project {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  
+  userId String  @db.ObjectId 
+  user   User    @relation(fields: [userId], references: [id])
+  
+  payments Payment[] 
+  deliveryFiles DeliveryFile[] 
+  projectName            String
+  projectSummary         String
+  projectDetails         String
+  budgetEstimate         String
+  completionDate         DateTime
+  contactName            String
+  contactDetails         String
+  attachments            String[]
+  status                 String   @default("Pending Admin Review")
+  finalQuote             Int?
+  paymentStatus          String   @default("Not Quoted")
+  completionPercentage   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 3. PortfolioProject Model (Prebuilt Projects) (MODIFIED)
+model PortfolioProject {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  features    String[]
+  techStacks  String[]
+  demoUrl     String
+  imageUrls   String[] // These are the DISPLAY images
+  price       String?
+  
+  // --- NEW DELIVERY FILE FIELDS ---
+  // These are the files the user downloads after purchase
+  setupVideoUrl   String?  // URL to the setup video
+  projectCodeUrl  String?  // URL to the .zip file
+  assetUrls       String[] // URLs to PDFs, images, etc.
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 4. BuyRequest Model
+model BuyRequest {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  
+  userId      String @db.ObjectId 
+  user        User   @relation(fields: [userId], references: [id])
+  
+  projectId   String @db.ObjectId
+  projectName String
+  status      String @default("New Inquiry")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 5. Payment Model
+model Payment {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  razorpayPaymentId String   @unique
+  razorpayOrderId   String
+  amount            Int      
+  paymentType       String   
+  status            String   @default("Success")
+  
+  userId    String  @db.ObjectId 
+  user      User    @relation(fields: [userId], references: [id])
+  
+  projectId         String?  @db.ObjectId 
+  project           Project? @relation(fields: [projectId], references: [id])
+  
+  portfolioProjectId String?  @db.ObjectId 
+  portfolioProjectName String? 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 6. DeliveryFile Model (For Custom Projects)
+model DeliveryFile {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  filename  String
+  url       String 
+  fileType  String // "Video", "Code", or "Asset"
+  
+  projectId String  @db.ObjectId 
+  project   Project @relation(fields: [projectId], references: [id])
+  createdAt DateTime @default(now())
+}
