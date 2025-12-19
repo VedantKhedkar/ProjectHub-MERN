@@ -1,10 +1,4 @@
-import React, { createContext, useState, useContext } from 'react';
-import axios from 'axios'; // <-- REQUIRED for API calls
-import { useNavigate } from 'react-router-dom'; // <-- REQUIRED for future navigation needs
-
-// --- LIVE RENDER URL FOR BACKEND ---
-const RENDER_API_BASE_URL = 'https://projecthub-backend-osq8.onrender.com';
-// ---
+import { createContext, useState, useContext } from 'react';
 
 // 1. Create the Context
 const AuthContext = createContext();
@@ -24,40 +18,19 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('token') || null;
   });
 
-  // --- State for the Login Modal ---
+  // --- NEW: State for the Login Modal ---
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const openLoginModal = () => setIsLoginModalOpen(true);
   const closeLoginModal = () => setIsLoginModalOpen(false);
   // --- END NEW ---
 
-  // --- MODIFIED: Function to handle login with API call ---
-  const login = async (email, password) => {
-    try {
-        const response = await axios.post(`${RENDER_API_BASE_URL}/api/auth/login`, { email, password });
-        const userData = response.data.user;
-        const jwtToken = response.data.token;
-
-        setUser(userData);
-        setToken(jwtToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', jwtToken);
-        closeLoginModal(); // Close modal on successful login
-
-        return response;
-    } catch (error) {
-        // Re-throw the error so components can catch it (e.g., to display toast)
-        throw error;
-    }
-  };
-  
-  // --- NEW: Function to handle registration with API call ---
-  const register = async (formData) => {
-    try {
-        const response = await axios.post(`${RENDER_API_BASE_URL}/api/auth/register`, formData);
-        return response;
-    } catch (error) {
-        throw error;
-    }
+  // Function to handle login
+  const login = (userData, jwtToken) => {
+    setUser(userData);
+    setToken(jwtToken);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', jwtToken);
+    closeLoginModal(); // Close modal on successful login
   };
 
   // Function to handle logout
@@ -74,9 +47,8 @@ export const AuthProvider = ({ children }) => {
     token,
     isLoggedIn: !!token, 
     login,
-    register, // Expose register function
     logout,
-    // --- Expose modal controls ---
+    // --- NEW: Expose modal controls ---
     isLoginModalOpen,
     openLoginModal,
     closeLoginModal,
