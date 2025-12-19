@@ -5,7 +5,8 @@ import authRoutes from './routes/auth.js';
 import adminRoutes from './routes/admin.js';
 import projectRoutes from './routes/project.js';
 import portfolioRoutes from './routes/portfolio.js';
-import paymentRoutes from './routes/payment.js'; // <-- 1. IMPORT NEW ROUTES
+import paymentRoutes from './routes/payment.js'; 
+import { PrismaClient } from "@prisma/client"// <-- 1. IMPORT NEW ROUTES
 
 const app = express();
 const PORT = 5000;
