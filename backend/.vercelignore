@@ -1,5 +1,7 @@
-# Replace 'uploads' with the actual name of your project files folder
+# Ignore the actual project files so they don't bloat the function
+public/uploads/
 uploads/
-projects/
-prebuilt-files/
+project_files/
+assets/
 frontend/
+node_modules/.cache
