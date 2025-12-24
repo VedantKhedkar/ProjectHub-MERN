@@ -1,7 +1,7 @@
 generator client {
   provider      = "prisma-client-js"
-  // output     = "../generated/prisma"  <-- DELETE or COMMENT this line
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+
+ binaryTargets = ["native", "rhel-debian-node-18.x"]
 }
 
 datasource db {
