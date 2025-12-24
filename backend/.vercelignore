@@ -1,8 +1,7 @@
-# Ignore frontend source and build artifacts
+# Ignore everything that isn't needed for the API
+node_modules/.cache
 frontend/
 client/
-public/assets/large-videos/
-
-# Ignore local prisma engines
-prisma/query-engine-*
-prisma/migration-engine-*
+public/
+*.pdf
+.git
