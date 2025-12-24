@@ -1,7 +1,5 @@
-# Ignore everything that isn't needed for the API
-node_modules/.cache
+# Replace 'uploads' with the actual name of your project files folder
+uploads/
+projects/
+prebuilt-files/
 frontend/
-client/
-public/
-*.pdf
-.git
