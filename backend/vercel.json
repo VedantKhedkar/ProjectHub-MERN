@@ -1,8 +1,8 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60,
-      "memory": 1024
+    "api/routes/paymentRoutes.js": {
+      "maxDuration": 10,
+      "memory": 512
     }
   }
 }

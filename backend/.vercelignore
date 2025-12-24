@@ -1,3 +1,8 @@
-/node_modules
-/.next/cache
-/public/large-assets
+# Ignore frontend source and build artifacts
+frontend/
+client/
+public/assets/large-videos/
+
+# Ignore local prisma engines
+prisma/query-engine-*
+prisma/migration-engine-*
