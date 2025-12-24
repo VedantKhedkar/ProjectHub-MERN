@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
-  "scripts": {
+"scripts": {
     "start": "node index.js",
     "dev": "dotenv -e .env -- nodemon --exec tsx index.js",
+    "build": "prisma generate",
     "postinstall": "prisma generate"
   },
   "keywords": [],
