@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
-"scripts": {
+  "scripts": {
     "start": "node index.js",
     "dev": "dotenv -e .env -- nodemon --exec tsx index.js",
     "build": "prisma generate",
@@ -15,22 +15,21 @@
   "description": "",
   "dependencies": {
     "@prisma/client": "^6.19.0",
-    "@sparticuz/chromium": "^143.0.0",
-    "axios": "^1.13.2",
+    "axios": "^1.7.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "^7.0.0",
-    "multer": "^2.0.2",
-    "pdfkit": "^0.17.2",
-    "puppeteer-core": "^24.34.0",
+    "mongodb": "^6.12.0",
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.15.0",
     "razorpay": "^2.9.6"
   },
   "devDependencies": {
-    "dotenv-cli": "^11.0.0",
-    "nodemon": "^3.1.11",
+    "dotenv-cli": "^8.0.0",
+    "nodemon": "^3.1.9",
     "prisma": "^6.19.0",
-    "tsx": "^4.20.6"
+    "tsx": "^4.19.2"
   }
 }
