@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react'; // Added icons
 
-const API_URL = 'http://localhost:5000/api/auth/login';
+const API_URL = 'https://project-hub-mern.vercel.app/';
 
 function LoginPage() {
   const [formData, setFormData] = useState({
