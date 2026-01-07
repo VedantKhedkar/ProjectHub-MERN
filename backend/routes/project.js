@@ -1,43 +1,87 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import { verifyToken } from '../middleware/verifyToken.js';
-import projectUpload from '../upload/projectUpload.js';
+import projectUpload from '../upload/projectUpload.js'; // This is now your Cloudinary middleware
 import crypto from 'crypto';
 
 const router = express.Router();
 
-// ... (existing POST /, GET /my-projects, GET /my-project/:projectId, POST /buy) ...
-// ... (existing POST /, GET /my-projects, GET /my-project/:projectId, POST /buy) ...
-// POST /api/projects
+// ------------------------------------------------------------------
+// 1. CREATE CUSTOM PROJECT REQUEST (UPDATED)
+// ------------------------------------------------------------------
 router.post('/', verifyToken, projectUpload, async (req, res) => {
   const projectData = req.body;
   const files = req.files; 
   const userIdFromToken = req.userId;
+
+  // Debug: Log incoming data to server console
+  console.log('--- Incoming Project Submission ---');
+  console.log('Data:', projectData);
+
   try {
     let attachmentPaths = [];
+
+    // --- CLOUDINARY HANDLING ---
+    // Cloudinary middleware automatically puts the public URL in 'file.path'
     if (files && files.length > 0) {
-      attachmentPaths = files.map(file => `/uploads/${file.filename}`);
+      attachmentPaths = files.map(file => file.path); 
     }
+
+    // --- CAPTURE SPECIFIC INPUTS ---
+    // The frontend sends dynamic fields (like 'dimensions', 'techStack') mixed in the body.
+    // We define the "Standard" keys to filter them out and find the "Custom" ones.
+    const standardKeys = [
+      'projectName', 'projectSummary', 'projectDetails', 
+      'budgetEstimate', 'completionDate', 'contactName', 
+      'contactDetails', 'category', 'attachments'
+    ];
+
+    let specificDetailsString = '';
+    
+    // Iterate through all keys in the body
+    Object.keys(projectData).forEach(key => {
+      // If a key is NOT a standard field, it's a specific requirement
+      if (!standardKeys.includes(key) && projectData[key]) {
+        // Format nicely: "- TechStack: React, Node"
+        // capitalize first letter for better readability
+        const label = key.charAt(0).toUpperCase() + key.slice(1);
+        specificDetailsString += `\n- ${label}: ${projectData[key]}`;
+      }
+    });
+
+    // --- COMBINE DETAILS ---
+    // Merge the main user description with the specific technical requirements
+    // This ensures everything is saved into the 'projectDetails' field in the DB.
+    const fullDetails = `${projectData.projectDetails}\n\n--- SPECIFIC REQUIREMENTS ---${specificDetailsString}`;
+
     const newProject = await prisma.project.create({
       data: {
         projectName: projectData.projectName,
         projectSummary: projectData.projectSummary,
-        projectDetails: projectData.projectDetails,
+        
+        // SAVE THE COMBINED TEXT HERE
+        projectDetails: fullDetails, 
+        
         budgetEstimate: projectData.budgetEstimate,
         completionDate: new Date(projectData.completionDate),
         contactName: projectData.contactName,
         contactDetails: projectData.contactDetails,
-        attachments: attachmentPaths, 
+        attachments: attachmentPaths, // Stores the Cloudinary URLs
+        
+        // Default status
+        status: "Pending Admin Review",
+        
         user: { connect: { id: userIdFromToken } },
       },
     });
+
     res.status(201).json({
-      message: 'Project request submitted successfully. Files saved locally.',
+      message: 'Project request submitted successfully. Files uploaded to Cloud.',
       project: newProject,
     });
   } catch (error) {
     console.error('Project Submission Error:', error);
-    if (error.message.includes('Invalid file type')) {
+    if (error.message && error.message.includes('Invalid file type')) {
         return res.status(400).json({ message: error.message });
     }
     res.status(500).json({ message: 'Internal server error.' });
@@ -45,7 +89,9 @@ router.post('/', verifyToken, projectUpload, async (req, res) => {
 });
 
 
-// GET /api/projects/my-projects
+// ------------------------------------------------------------------
+// 2. GET MY PROJECTS
+// ------------------------------------------------------------------
 router.get('/my-projects', verifyToken, async (req, res) => {
   const userIdFromToken = req.userId;
   try {
@@ -66,7 +112,10 @@ router.get('/my-projects', verifyToken, async (req, res) => {
   }
 });
 
-// GET /api/projects/my-project/:projectId
+
+// ------------------------------------------------------------------
+// 3. GET SINGLE PROJECT (User or Admin)
+// ------------------------------------------------------------------
 router.get('/my-project/:projectId', verifyToken, async (req, res) => {
   const { projectId } = req.params;
   const userIdFromToken = req.userId;
@@ -83,6 +132,7 @@ router.get('/my-project/:projectId', verifyToken, async (req, res) => {
     });
 
     if (!project) {
+      // Check if Admin
       const adminUser = await prisma.user.findUnique({ where: { id: userIdFromToken } });
       if (adminUser && adminUser.email === 'admin@projecthub.com') {
         const adminProject = await prisma.project.findUnique({ 
@@ -104,7 +154,9 @@ router.get('/my-project/:projectId', verifyToken, async (req, res) => {
 });
 
 
-// POST /api/projects/buy
+// ------------------------------------------------------------------
+// 4. BUY PORTFOLIO PROJECT (Inquiry)
+// ------------------------------------------------------------------
 router.post('/buy', verifyToken, async (req, res) => {
   const { projectId, projectName } = req.body;
   const userIdFromToken = req.userId;
@@ -127,7 +179,10 @@ router.post('/buy', verifyToken, async (req, res) => {
   }
 });
 
-// POST /api/projects/confirm-payment/:projectId
+
+// ------------------------------------------------------------------
+// 5. CONFIRM PAYMENT (Custom Projects)
+// ------------------------------------------------------------------
 router.post('/confirm-payment/:projectId', verifyToken, async (req, res) => {
   const { projectId } = req.params; // This is the Custom Project ID
   const { paymentType, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body; 
@@ -193,7 +248,9 @@ router.post('/confirm-payment/:projectId', verifyToken, async (req, res) => {
 });
 
 
-// GET /api/projects/my-payments
+// ------------------------------------------------------------------
+// 6. GET MY PAYMENTS
+// ------------------------------------------------------------------
 router.get('/my-payments', verifyToken, async (req, res) => {
   const userIdFromToken = req.userId;
   try {
@@ -214,8 +271,9 @@ router.get('/my-payments', verifyToken, async (req, res) => {
 });
 
 
-// --- (NEW) GET MY PREBUILT PURCHASES ---
-// GET /api/projects/my-purchases
+// ------------------------------------------------------------------
+// 7. GET MY PURCHASES (Prebuilt/Portfolio)
+// ------------------------------------------------------------------
 router.get('/my-purchases', verifyToken, async (req, res) => {
   const userIdFromToken = req.userId;
   try {
@@ -255,6 +313,5 @@ router.get('/my-purchases', verifyToken, async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
-
 
 export default router;

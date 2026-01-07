@@ -6,10 +6,29 @@ import { Download, Video, FileArchive, Image } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api/projects/my-purchases';
 
-// Helper component to render a download link (Themed)
+// --- HELPER: Force Cloudinary Download ---
+// This prevents videos/pdfs from just opening in a new tab.
+const getDownloadUrl = (url) => {
+  if (!url) return '#';
+
+  // 1. If it's a Cloudinary URL, inject the 'fl_attachment' flag
+  // This tells Cloudinary to send headers that force the browser to download
+  if (url.includes('cloudinary.com') && url.includes('/upload/')) {
+    return url.replace('/upload/', '/upload/fl_attachment/');
+  }
+
+  // 2. If it's an old local file (doesn't start with http), prepend backend URL
+  if (!url.startsWith('http')) {
+    return `http://localhost:5000${url}`;
+  }
+
+  return url;
+};
+
+// Helper component to render a download link
 const DownloadLink = ({ url, label, icon }) => (
   <a 
-    href={url} 
+    href={getDownloadUrl(url)} // <--- Apply the helper here
     target="_blank" 
     rel="noopener noreferrer"
     className="flex items-center p-4 bg-slate-900 border border-slate-700 rounded-xl hover:bg-slate-700/50 hover:border-blue-500/50 transition-all duration-200 group"
@@ -75,7 +94,7 @@ function MyPrebuiltProjectsPage() {
                 You haven't purchased any prebuilt projects yet.
               </p>
               <Link 
-                to="/my-prebuilt-projects" // Assuming this redirects to the shop/portfolio
+                to="/my-prebuilt-projects" 
                 className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-900/20"
               >
                 Browse Portfolio

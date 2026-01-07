@@ -27,6 +27,17 @@ function PortfolioDisplay() {
   const navigate = useNavigate();
   const isAdmin = isLoggedIn && user?.email === 'admin@projecthub.com';
 
+  // --- IMAGE URL HELPER (FIXES THE BUG) ---
+  const getImageUrl = (path) => {
+    if (!path) return null;
+    // If it's a Cloudinary URL (starts with http or https), return it as is
+    if (path.startsWith('http') || path.startsWith('https')) {
+      return path;
+    }
+    // If it's a local path, prepend the backend URL
+    return `http://localhost:5000${path}`;
+  };
+
   // Fetch Logic
   const fetchProjects = async (query = '') => {
     try {
@@ -202,7 +213,7 @@ function PortfolioDisplay() {
                 {p.imageUrls && p.imageUrls.length > 0 ? (
                   <div className="relative overflow-hidden h-48 w-full border-b border-slate-700">
                     <img 
-                        src={`http://localhost:5000${p.imageUrls[0]}`} 
+                        src={getImageUrl(p.imageUrls[0])} 
                         alt={p.name} 
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 ease-out" 
                     />

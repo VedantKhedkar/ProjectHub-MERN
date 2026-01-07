@@ -2,13 +2,12 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx'; 
 import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react'; // Added icons
+import { Eye, EyeOff } from 'lucide-react';
 
-// src/api/axios.js or similar
-import axios from 'axios';
+// 1. Point to the /api prefix defined in your backend index.js
+const API_BASE_URL = 'http://localhost:5000/api';
 
-const API_BASE_URL ='http://localhost:5000/api';
-
+// 2. Create the instance to handle CORS credentials automatically
 const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true
@@ -21,15 +20,16 @@ function LoginPage() {
   });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // New state
+  const [showPassword, setShowPassword] = useState(false);
   
   const { login } = useAuth(); 
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setMessage('');
-    setError('');
+    // Clear errors as soon as the user starts typing again
+    if (error) setError('');
+    if (message) setMessage('');
   };
 
   const togglePasswordVisibility = () => {
@@ -42,14 +42,23 @@ function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post(API_URL, formData);
-      const userData = response.data.user;
+      // 3. CRITICAL FIX: Use 'api.post' and the full endpoint path '/auth/login'
+      const response = await api.post('/auth/login', formData);
       
-      login(userData, response.data.token);
+      const userData = response.data.user;
+      const token = response.data.token;
+      
+      // Pass data to your Auth Context
+      login(userData, token);
+      
+      // Redirect to Dashboard
       navigate('/'); 
 
     } catch (err) {
-      setError(err.response?.data?.message || 'An unknown error occurred.');
+      console.error("Login Error:", err);
+      // improved error handling to catch network errors (backend offline) vs api errors (wrong password)
+      const errorMessage = err.response?.data?.message || err.message || 'An unknown error occurred.';
+      setError(errorMessage);
       setMessage('');
     }
   };
@@ -70,8 +79,9 @@ function LoginPage() {
             </p>
         </div>
 
+        {/* Error Message Banner */}
         {error && (
-            <div className="bg-red-900/20 border border-red-900/50 p-3 rounded-lg text-center">
+            <div className="bg-red-900/20 border border-red-900/50 p-3 rounded-lg text-center animate-pulse">
                 <p className="text-red-400 text-sm font-semibold">{error}</p>
             </div>
         )}
@@ -102,7 +112,7 @@ function LoginPage() {
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className={`${inputClass} pr-12`} // Added padding right for icon
+                className={`${inputClass} pr-12`} 
                 placeholder="••••••••"
               />
               <button

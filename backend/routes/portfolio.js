@@ -1,7 +1,7 @@
 import express from 'express';
 import prisma from '../lib/prisma.js';
 import { verifyToken } from '../middleware/verifyToken.js';
-import { portfolioImageUpload } from '../upload/projectUpload.js'; // <-- Multer handler
+import { portfolioImageUpload } from '../upload/projectUpload.js'; // Cloudinary middleware
 
 const router = express.Router();
 
@@ -11,14 +11,35 @@ const stringToArray = (str) => {
     return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
 };
 
-// --- PUBLIC ROUTES (Define first for correct Express routing priority) ---
+// --- PUBLIC ROUTES ---
 
-// GET /api/portfolio
+// GET /api/portfolio (UPDATED WITH SEARCH)
 router.get('/', async (req, res) => {
+    const { search } = req.query; // Extract search term
+
     try {
-        const projects = await prisma.portfolioProject.findMany({
+        let queryOptions = {
             orderBy: { createdAt: 'desc' },
-        });
+        };
+
+        // If a search term exists, filter the results
+        if (search) {
+            queryOptions.where = {
+                OR: [
+                    // 1. Search in Name (Case Insensitive)
+                    { name: { contains: search, mode: 'insensitive' } },
+                    
+                    // 2. Search in Description (Case Insensitive)
+                    { description: { contains: search, mode: 'insensitive' } },
+                    
+                    // 3. Search in Tech Stacks (Exact Match in Array)
+                    // Note: This checks if the array contains the exact string
+                    { techStacks: { has: search } } 
+                ]
+            };
+        }
+
+        const projects = await prisma.portfolioProject.findMany(queryOptions);
         res.status(200).json(projects);
     } catch (error) {
         console.error('Get Portfolio Error:', error);
@@ -26,7 +47,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET /api/portfolio/:id (MUST be defined before specific actions like POST/DELETE)
+// GET /api/portfolio/:id
 router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
@@ -52,10 +73,9 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
     const projectData = req.body;
     const files = req.files;
 
-    // Extract fields, including the NEW 'price' field
+    // Extract fields
     const { name, description, demoUrl, price } = projectData; 
 
-    // Check required fields (Price is now required for creation)
     if (!name || !description || !projectData.techStacks || !demoUrl || !price) {
         return res.status(400).json({ message: 'Missing required fields (Name, Description, Tech Stacks, Demo URL, Price).' });
     }
@@ -63,9 +83,9 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
     try {
         let imageUrls = [];
 
-        // 1. Process File Uploads (Local Storage)
+        // Use file.path (Cloudinary URL)
         if (files && files.length > 0) {
-            imageUrls = files.map(file => `/uploads/${file.filename}`);
+            imageUrls = files.map(file => file.path);
         } else {
             return res.status(400).json({ message: 'At least one image is required for the portfolio.' });
         }
@@ -75,7 +95,7 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
                 name,
                 description,
                 demoUrl,
-                price, // <--- SAVING NEW PRICE FIELD
+                price, 
                 features: stringToArray(projectData.features),
                 techStacks: stringToArray(projectData.techStacks),
                 imageUrls, 
@@ -83,7 +103,7 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
         });
 
         res.status(201).json({
-            message: 'Portfolio project added successfully with images.',
+            message: 'Portfolio project added successfully to Cloud.',
             project: newPortfolioProject,
         });
 
@@ -100,7 +120,6 @@ router.patch('/:id', verifyToken, portfolioImageUpload, async (req, res) => {
     const projectData = req.body; 
     const files = req.files;
 
-    // Check required fields (Price validation for update)
     if (!projectData.price) {
          return res.status(400).json({ message: 'Price field cannot be empty during update.' });
     }
@@ -110,18 +129,18 @@ router.patch('/:id', verifyToken, portfolioImageUpload, async (req, res) => {
             name: projectData.name,
             description: projectData.description,
             demoUrl: projectData.demoUrl,
-            price: projectData.price, // <--- UPDATING NEW PRICE FIELD
+            price: projectData.price,
             features: stringToArray(projectData.features),
             techStacks: stringToArray(projectData.techStacks),
         };
 
-        // --- Handle Image Update ---
+        // Handle Image Update (Cloudinary)
         if (files && files.length > 0) {
-            // New files were uploaded. Overwrite existing image URLs.
-            const uploadedPaths = files.map(file => `/uploads/${file.filename}`);
+            // New files uploaded -> Use Cloudinary URLs
+            const uploadedPaths = files.map(file => file.path);
             updateData.imageUrls = uploadedPaths;
         } else if (projectData.imageUrls) {
-            // Save the existing array back after conversion.
+            // No new files -> Keep existing URLs
             updateData.imageUrls = stringToArray(projectData.imageUrls);
         }
 
@@ -149,27 +168,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Find the project first to get file paths for local deletion
-        const projectToDelete = await prisma.portfolioProject.findUnique({
-             where: { id: id },
-             select: { imageUrls: true }
-        });
-
-        // Perform local file cleanup (optional but good practice)
-        if (projectToDelete && projectToDelete.imageUrls.length > 0) {
-            const fs = await import('fs/promises');
-            const path = await import('path');
-            projectToDelete.imageUrls.forEach(urlPath => {
-                // Ensure only relative paths are deleted
-                if (urlPath.startsWith('/uploads/')) {
-                    const filename = urlPath.replace('/uploads/', '');
-                    fs.unlink(path.join(process.cwd(), 'uploads/', filename))
-                      .catch(e => console.warn(`Could not delete file: ${filename}`, e));
-                }
-            });
-        }
-        
-        // Delete the database entry
+        // Only delete the database record (Files remain in Cloudinary or can be deleted via separate Admin tool)
         await prisma.portfolioProject.delete({
             where: { id: id },
         });
@@ -184,6 +183,5 @@ router.delete('/:id', verifyToken, async (req, res) => {
         res.status(500).json({ message: 'Internal server error.' });
     }
 });
-
 
 export default router;

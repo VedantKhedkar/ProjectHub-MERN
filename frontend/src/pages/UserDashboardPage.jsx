@@ -1,9 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast'; 
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion'; 
+import { 
+    CreditCard, Clock, CheckCircle, FileText, 
+    Plus, Download, Activity, AlertCircle, FolderOpen,
+    Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp 
+} from 'lucide-react'; 
 
 // API endpoints
 const MY_PROJECTS_URL = 'http://localhost:5000/api/projects/my-projects';
@@ -13,17 +19,29 @@ const MY_PAYMENTS_URL = 'http://localhost:5000/api/projects/my-payments';
 const RECEIPT_URL_BASE = 'http://localhost:5000/api/payment/receipt';
 const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; 
 
-// --- Progress Bar Component (Themed) ---
+// --- Progress Bar Component ---
 const ProgressBar = ({ percentage }) => (
-  <div className="w-full bg-slate-700 rounded-full h-3 mt-3 overflow-hidden">
-    <div
-      className="bg-gradient-to-r from-blue-500 to-blue-400 h-3 rounded-full text-[9px] text-white text-center font-bold flex items-center justify-center transition-all duration-700 ease-out shadow-lg shadow-blue-500/20"
-      style={{ width: `${percentage}%` }}
+  <div className="w-full bg-slate-900/50 rounded-full h-3 mt-4 overflow-hidden border border-slate-700/50">
+    <motion.div
+      initial={{ width: 0 }}
+      animate={{ width: `${percentage}%` }}
+      transition={{ duration: 1.5, ease: "easeOut" }}
+      className="bg-gradient-to-r from-blue-600 to-cyan-400 h-full rounded-full relative"
     >
-      {percentage > 10 && `${percentage}%`}
-    </div>
+        <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
+    </motion.div>
   </div>
 );
+
+// --- Status Badge Helper ---
+const getStatusStyle = (status) => {
+    switch (status) {
+        case 'Delivered': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        case 'In Progress': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        case 'Pending': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+        default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    }
+};
 
 // --- Project Card Component ---
 const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
@@ -115,23 +133,29 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
   const isDelivered = project.status === 'Delivered';
 
   return (
-    <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-lg relative overflow-hidden group hover:border-slate-600 transition-all">
+    <motion.div 
+        variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+        className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-xl hover:shadow-2xl hover:border-blue-500/30 transition-all group"
+    >
       {/* Header */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-6">
         <div>
-            <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors">{project.projectName}</h3>
-            <p className="text-xs text-slate-400 font-mono">ID: {project.id.slice(-6)} • {new Date(project.createdAt).toLocaleDateString()}</p>
+            <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors tracking-tight">{project.projectName}</h3>
+            <p className="text-xs text-slate-400 font-mono flex items-center gap-2">
+                <Clock size={12} />
+                {new Date(project.createdAt).toLocaleDateString()}
+            </p>
         </div>
-        <span className="px-3 py-1 text-xs font-bold uppercase tracking-wide rounded-full bg-slate-900 text-blue-400 border border-slate-700 shadow-sm">
+        <span className={`px-3 py-1 text-xs font-bold uppercase tracking-wide rounded-full border ${getStatusStyle(project.status)}`}>
           {project.status}
         </span>
       </div>
       
       {/* Progress Section */}
       {project.status === 'In Progress' && (
-        <div className="mb-6 bg-slate-900/50 p-4 rounded-lg border border-slate-700/50">
-          <div className="flex justify-between text-xs font-semibold text-slate-400 mb-1">
-            <span>DEVELOPMENT PROGRESS</span>
+        <div className="mb-6 bg-slate-900/40 p-5 rounded-xl border border-slate-700/50">
+          <div className="flex justify-between text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <span className="flex items-center gap-2"><Activity size={14} className="text-blue-400"/> Development Velocity</span>
             <span className="text-blue-400">{project.completionPercentage}%</span>
           </div>
           <ProgressBar percentage={project.completionPercentage} />
@@ -140,9 +164,10 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
 
       {/* Payment Status Pill */}
       {project.paymentStatus !== "Not Quoted" && (
-         <div className="mb-4">
-            <span className={`px-2.5 py-1 inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md border 
+         <div className="mb-5">
+            <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide rounded-lg border 
                 ${project.paymentStatus === '100% Paid' ? 'bg-emerald-900/20 text-emerald-400 border-emerald-800' : 'bg-amber-900/20 text-amber-500 border-amber-800'}`}>
+                <CreditCard size={12} />
                 {project.paymentStatus}
             </span>
          </div>
@@ -150,48 +175,60 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
 
       {/* Payment Actions Grid */}
       <div className="space-y-3 pt-2">
-        {/* Step 1: Initial Payment */}
         {project.status === "Quote Sent - Awaiting 50% Payment" && !hasPaidInitial && (
-            <div className="p-4 bg-amber-900/10 border border-amber-800/30 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-center sm:text-left">
-                    <p className="text-amber-400 font-bold text-sm">Quote Approved</p>
-                    <p className="text-slate-400 text-xs">Pay 50% advance to start work.</p>
+            <motion.div 
+                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                className="p-4 bg-gradient-to-r from-amber-900/10 to-transparent border-l-4 border-amber-500 rounded-r-lg flex flex-col sm:flex-row justify-between items-center gap-4"
+            >
+                <div>
+                    <p className="text-amber-400 font-bold text-sm flex items-center gap-2"><AlertCircle size={16}/> Quote Approved</p>
+                    <p className="text-slate-400 text-xs mt-1">Pay 50% advance to start work.</p>
                 </div>
-                <button onClick={() => handlePayment('Initial_50')} className="w-full sm:w-auto px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-900/20 transition-all">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePayment('Initial_50')} className="px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-900/20 transition-all">
                     Pay ₹{project.finalQuote / 2}
-                </button>
-            </div>
+                </motion.button>
+            </motion.div>
         )}
 
-        {/* Step 2: Final Payment */}
         {project.status === "Awaiting Final Payment" && project.paymentStatus === "50% Paid" && !hasPaidFinal && (
-            <div className="p-4 bg-blue-900/10 border border-blue-800/30 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="text-center sm:text-left">
-                    <p className="text-blue-400 font-bold text-sm">Project Complete</p>
-                    <p className="text-slate-400 text-xs">Pay balance to release files.</p>
+            <motion.div 
+                initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                className="p-4 bg-gradient-to-r from-blue-900/10 to-transparent border-l-4 border-blue-500 rounded-r-lg flex flex-col sm:flex-row justify-between items-center gap-4"
+            >
+                <div>
+                    <p className="text-blue-400 font-bold text-sm flex items-center gap-2"><CheckCircle size={16}/> Project Complete</p>
+                    <p className="text-slate-400 text-xs mt-1">Pay balance to release files.</p>
                 </div>
-                <button onClick={() => handlePayment('Final_100')} className="w-full sm:w-auto px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-900/20 transition-all">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => handlePayment('Final_100')} className="px-5 py-2 bg-green-600 hover:bg-green-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-green-900/20 transition-all">
                     Pay ₹{project.finalQuote / 2}
-                </button>
-            </div>
+                </motion.button>
+            </motion.div>
         )}
 
-        {/* Step 3: Delivery */}
         {isDelivered && (
-            <Link to={`/project/delivery/${project.id}`} className="block w-full py-3 bg-slate-700 hover:bg-slate-600 text-white text-center rounded-lg font-bold transition-all border border-slate-600 hover:border-blue-500 shadow-sm flex items-center justify-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Access Project Files
+            <Link to={`/project/delivery/${project.id}`}>
+                <motion.div 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-3.5 bg-slate-700/50 hover:bg-blue-600/20 text-white text-center rounded-xl font-bold transition-all border border-slate-600 hover:border-blue-500 shadow-lg flex items-center justify-center gap-3 group/btn"
+                >
+                    <Download size={18} className="text-blue-400 group-hover/btn:text-white transition-colors" />
+                    Access Project Files
+                </motion.div>
             </Link>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-// --- Transaction History Component (Themed) ---
+// --- Transaction History Component (Paginated) ---
 const TransactionHistory = ({ token, refreshTrigger }) => { 
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
+  const ITEMS_PER_PAGE = 5; 
 
   useEffect(() => {
     const fetchPayments = async () => {
@@ -229,36 +266,90 @@ const TransactionHistory = ({ token, refreshTrigger }) => {
     }
   };
 
+  const filteredPayments = useMemo(() => {
+    return payments.filter(p => {
+        const name = p.project?.projectName || p.portfolioProjectName || '';
+        const amount = (p.amount / 100).toString();
+        const date = format(new Date(p.createdAt), 'MMM dd, yyyy');
+        const search = searchTerm.toLowerCase();
+        
+        return name.toLowerCase().includes(search) || 
+               amount.includes(search) || 
+               date.toLowerCase().includes(search);
+    });
+  }, [payments, searchTerm]);
+
+  const totalPages = Math.ceil(filteredPayments.length / ITEMS_PER_PAGE);
+  const paginatedData = filteredPayments.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+
+  const nextPage = () => setCurrentPage(prev => Math.min(prev + 1, totalPages));
+  const prevPage = () => setCurrentPage(prev => Math.max(prev - 1, 1));
+
   return (
-    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
-        <div className="px-6 py-5 border-b border-slate-700 bg-slate-800/50">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Payment History
-                <span className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full">{payments.length}</span>
-            </h2>
+    <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        className="bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50 overflow-hidden shadow-2xl flex flex-col h-full"
+    >
+        {/* Toolbar */}
+        <div className="px-6 py-5 border-b border-slate-700/50 bg-slate-800/30 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg"><FileText size={20} className="text-blue-500"/></div>
+                <div>
+                    <h2 className="text-lg font-bold text-white">Transaction History</h2>
+                    <p className="text-xs text-slate-400">Total Spent: ₹{payments.reduce((acc, curr) => acc + (curr.amount/100), 0).toLocaleString()}</p>
+                </div>
+            </div>
+            <div className="relative w-full sm:w-64 group">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"/>
+                <input 
+                    type="text" placeholder="Search transactions..." value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-2 pl-10 pr-4 text-sm text-slate-300 focus:outline-none focus:border-blue-500/50 transition-all placeholder:text-slate-600"
+                />
+            </div>
         </div>
         
-        <div className="overflow-x-auto">
+        {/* Table */}
+        <div className="overflow-x-auto flex-grow min-h-[300px]"> 
             <table className="w-full text-sm text-left">
-                <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-700">
+                <thead className="text-xs text-slate-400 uppercase bg-slate-900/30 border-b border-slate-700/50">
                     <tr>
-                        <th className="px-6 py-3 font-semibold">Date</th>
-                        <th className="px-6 py-3 font-semibold">Project</th>
-                        <th className="px-6 py-3 font-semibold">Amount</th>
-                        <th className="px-6 py-3 font-semibold text-right">Action</th>
+                        <th className="px-6 py-4 font-semibold tracking-wider">Date</th>
+                        <th className="px-6 py-4 font-semibold tracking-wider">Project Details</th>
+                        <th className="px-6 py-4 font-semibold tracking-wider">Amount</th>
+                        <th className="px-6 py-4 font-semibold tracking-wider text-right">Receipt</th>
                     </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700">
-                    {payments.length === 0 ? (
-                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500">No payment records found.</td></tr>
+                <tbody className="divide-y divide-slate-700/30">
+                    {loading ? (
+                         [...Array(3)].map((_, i) => (
+                             <tr key={i} className="animate-pulse">
+                                 <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-24"></div></td>
+                                 <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-32"></div></td>
+                                 <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-16"></div></td>
+                                 <td className="px-6 py-4"></td>
+                             </tr>
+                         ))
+                    ) : paginatedData.length === 0 ? (
+                        <tr><td colSpan="4" className="px-6 py-12 text-center text-slate-500 italic">No transactions found matching your search.</td></tr>
                     ) : (
-                        payments.map((p) => (
-                            <tr key={p.id} className="hover:bg-slate-700/30 transition-colors">
-                                <td className="px-6 py-4 text-slate-400 font-mono text-xs">{format(new Date(p.createdAt), 'MMM dd, yyyy')}</td>
-                                <td className="px-6 py-4 text-white font-medium">{p.project?.projectName || p.portfolioProjectName || 'N/A'}</td>
-                                <td className="px-6 py-4 text-emerald-400 font-bold">₹ {p.amount / 100}</td>
+                        paginatedData.map((p) => (
+                            <tr key={p.id} className="hover:bg-slate-700/20 transition-colors group">
+                                <td className="px-6 py-4 text-slate-400 font-mono text-xs whitespace-nowrap">
+                                    {format(new Date(p.createdAt), 'MMM dd, yyyy')}
+                                    <div className="text-[10px] text-slate-600">{format(new Date(p.createdAt), 'hh:mm a')}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="text-white font-medium group-hover:text-blue-400 transition-colors line-clamp-1">{p.project?.projectName || p.portfolioProjectName || 'Unknown Project'}</div>
+                                    <div className="text-[10px] text-slate-500 uppercase tracking-wide">ID: {p.razorpayPaymentId.slice(-8)}</div>
+                                </td>
+                                <td className="px-6 py-4 text-emerald-400 font-bold font-mono whitespace-nowrap">₹ {(p.amount / 100).toLocaleString()}</td>
                                 <td className="px-6 py-4 text-right">
-                                    <button onClick={() => handleDownloadReceipt(p)} className="text-blue-400 hover:text-white font-medium text-xs border border-slate-600 hover:bg-blue-600 px-3 py-1.5 rounded transition-all">Receipt</button>
+                                    <button onClick={() => handleDownloadReceipt(p)} className="text-slate-400 hover:text-white font-medium text-xs border border-slate-600 hover:bg-blue-600 hover:border-blue-500 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ml-auto group/btn">
+                                        <Download size={12} className="group-hover/btn:animate-bounce"/> PDF
+                                    </button>
                                 </td>
                             </tr>
                         ))
@@ -266,7 +357,20 @@ const TransactionHistory = ({ token, refreshTrigger }) => {
                 </tbody>
             </table>
         </div>
-    </div>
+
+        {/* Footer */}
+        {filteredPayments.length > ITEMS_PER_PAGE && (
+            <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-800/30 flex justify-between items-center">
+                <span className="text-xs text-slate-500">
+                    Showing <span className="text-white font-semibold">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="text-white font-semibold">{Math.min(currentPage * ITEMS_PER_PAGE, filteredPayments.length)}</span> of {filteredPayments.length}
+                </span>
+                <div className="flex items-center gap-2">
+                    <button onClick={prevPage} disabled={currentPage === 1} className="p-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><ChevronLeft size={16} /></button>
+                    <button onClick={nextPage} disabled={currentPage === totalPages} className="p-1.5 rounded-lg border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all"><ChevronRight size={16} /></button>
+                </div>
+            </div>
+        )}
+    </motion.div>
   );
 };
 
@@ -276,6 +380,8 @@ function UserDashboardPage() {
   const [myProjects, setMyProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0); 
+  const [showAllProjects, setShowAllProjects] = useState(false);
+  const INITIAL_PROJECT_LIMIT = 4;
 
   const refreshAllData = () => {
     fetchMyProjects();
@@ -299,56 +405,77 @@ function UserDashboardPage() {
     if(token) fetchMyProjects();
   }, [token]);
 
+  const displayedProjects = showAllProjects ? myProjects : myProjects.slice(0, INITIAL_PROJECT_LIMIT);
+
   return (
-    // Global Deep Background
-    <div className="min-h-screen bg-[#0f172a] text-slate-300 p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-12">
+    <div className="min-h-screen bg-[#0f172a] text-slate-300 p-6 md:p-12 relative overflow-x-hidden">
+      
+      {/* Background Animated Blobs */}
+      <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-600/10 blur-[150px] rounded-full pointer-events-none" />
+      <motion.div animate={{ x: [-50, 50, -50], opacity: [0.1, 0.2, 0.1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none" />
+
+      <div className="max-w-6xl mx-auto space-y-12 relative z-10">
         
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-4">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-700/50 pb-8 gap-6">
             <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight flex items-center gap-3">
-                    <span className="text-blue-500">●</span> My Projects
+                <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight flex items-center gap-3">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">My Projects</span>
                 </h1>
-                <p className="text-slate-400 mt-2 text-lg">Manage your custom projects and track progress.</p>
+                <p className="text-slate-400 mt-3 text-lg font-light">Track progress, manage payments, and access deliverables.</p>
             </div>
-            <Link to="/custom-project" className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2 transform hover:scale-105">
-                <span>+</span> New Custom Request
+            
+            <Link to="/custom-project">
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-900/30 hover:shadow-blue-600/50 transition-all flex items-center gap-2">
+                    <Plus size={20} /> New Request
+                </motion.button>
             </Link>
-        </div>
+        </motion.div>
 
         {/* Active Projects Grid */}
         <section>
-          <div className="flex items-center justify-between mb-6">
-             <h2 className="text-xl font-bold text-white">Active Projects</h2>
-             {myProjects.length > 0 && <span className="bg-slate-800 text-slate-300 px-3 py-1 rounded-lg text-xs font-mono border border-slate-700">{myProjects.length} Total</span>}
+          <div className="flex items-center justify-between mb-8">
+             <div className="flex items-center gap-4">
+                 <h2 className="text-2xl font-bold text-white flex items-center gap-2"><FolderOpen size={24} className="text-amber-500"/> Active Dashboard</h2>
+                 {myProjects.length > 0 && <span className="bg-slate-800/50 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold border border-slate-700">{myProjects.length} Projects</span>}
+             </div>
+
+             {/* View All Toggle */}
+             {myProjects.length > INITIAL_PROJECT_LIMIT && (
+                <button onClick={() => setShowAllProjects(!showAllProjects)} className="flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-white transition-colors group">
+                    {showAllProjects ? 'Show Less' : 'View All'}
+                    {showAllProjects ? <ChevronUp size={16} className="group-hover:-translate-y-0.5 transition-transform"/> : <ChevronDown size={16} className="group-hover:translate-y-0.5 transition-transform"/>}
+                </button>
+             )}
           </div>
           
           {loading ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {[1,2].map(i => <div key={i} className="h-64 bg-slate-800 rounded-xl animate-pulse"></div>)}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 {[1,2].map(i => <div key={i} className="h-72 bg-slate-800/30 rounded-2xl animate-pulse border border-slate-700/30"></div>)}
              </div>
           ) : myProjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {myProjects.map(project => (
-                <ProjectTrackerCard 
-                  key={project.id} 
-                  project={project}
-                  token={token} 
-                  user={user} 
-                  onPaymentSuccess={refreshAllData} 
-                />
+            <motion.div 
+                // CRITICAL FIX: Forces re-render/re-animate when toggle changes
+                key={showAllProjects ? 'all' : 'limited'} 
+                initial="hidden" 
+                animate="visible" 
+                variants={{ visible: { transition: { staggerChildren: 0.1 } } }} 
+                className="grid grid-cols-1 md:grid-cols-2 gap-8"
+            >
+              {displayedProjects.map(project => (
+                <ProjectTrackerCard key={project.id} project={project} token={token} user={user} onPaymentSuccess={refreshAllData} />
               ))}
-            </div>
+            </motion.div>
           ) : (
-            <div className="text-center py-20 bg-slate-800/30 rounded-2xl border border-dashed border-slate-700">
-                <p className="text-slate-400 font-medium text-lg">No active custom projects.</p>
-                <Link to="/custom-project" className="text-blue-400 hover:text-blue-300 font-medium mt-2 inline-block hover:underline">Start a new project &rarr;</Link>
-            </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-24 bg-slate-800/20 rounded-2xl border border-dashed border-slate-700/50 backdrop-blur-sm">
+                <FolderOpen size={48} className="text-slate-600 mx-auto mb-4 opacity-50"/>
+                <p className="text-slate-400 font-medium text-lg">No active custom projects found.</p>
+                <Link to="/custom-project" className="text-blue-400 hover:text-blue-300 font-bold mt-3 inline-block hover:underline">Start a new project &rarr;</Link>
+            </motion.div>
           )}
         </section>
         
-        {/* Transaction History */}
+        {/* Transaction History (Smart Widget) */}
         <TransactionHistory token={token} refreshTrigger={refreshTrigger} />
         
       </div>

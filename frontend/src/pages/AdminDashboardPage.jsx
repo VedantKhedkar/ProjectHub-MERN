@@ -4,17 +4,19 @@ import UserManagement from '../components/UserManagement.jsx';
 import ProjectTracking from '../components/ProjectTracking.jsx'; 
 import PortfolioManagement from '../components/PortfolioManagement.jsx';
 import BuyRequestTracking from '../components/BuyRequestTracking.jsx';
+import { motion, AnimatePresence } from 'framer-motion'; // Import for animations
+import { LogOut, Users, FileText, ShoppingCart, Briefcase } from 'lucide-react'; // Optional icons for better UI
 
 const TABS = [
-    { id: 'users', name: 'User Approval', component: <UserManagement /> },
-    { id: 'projects', name: 'Custom Project Tracking', component: <ProjectTracking /> },
-    { id: 'buy', name: 'Buy Inquiries', component: <BuyRequestTracking /> },
-    { id: 'portfolio', name: 'Portfolio Content', component: <PortfolioManagement /> },
+    { id: 'users', name: 'User Approval', icon: <Users size={18} />, component: <UserManagement /> },
+    { id: 'projects', name: 'Custom Projects', icon: <FileText size={18} />, component: <ProjectTracking /> },
+    { id: 'buy', name: 'Buy Inquiries', icon: <ShoppingCart size={18} />, component: <BuyRequestTracking /> },
+    { id: 'portfolio', name: 'Portfolio Content', icon: <Briefcase size={18} />, component: <PortfolioManagement /> },
 ];
 
 function AdminDashboardPage() {
     const { user, logout } = useAuth();
-    const [activeTab, setActiveTab] = useState('users'); // Default to User Approval
+    const [activeTab, setActiveTab] = useState('users');
 
     const renderActiveComponent = () => {
         const tab = TABS.find(t => t.id === activeTab);
@@ -22,52 +24,85 @@ function AdminDashboardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a16] text-white p-8">
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-[#0a0a16] text-white p-6 md:p-12 relative overflow-hidden">
+            {/* Background Decor (Subtle Glows) */}
+            <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#8b5cf6]/10 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-[#d946ef]/10 rounded-full blur-[120px] pointer-events-none" />
+
+            <div className="max-w-7xl mx-auto relative z-10">
                 
-                {/* Header Section */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-[#2d2d3d] pb-6">
+                {/* --- HEADER --- */}
+                <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-[#2d2d3d]/50 pb-8"
+                >
                     <div>
-                        <h1 className="text-4xl font-bold bg-gradient-to-r from-[#8b5cf6] to-[#d946ef] bg-clip-text text-transparent mb-2">
-                            Admin Dashboard ⚙️
+                        <h1 className="text-5xl font-extrabold bg-gradient-to-r from-[#8b5cf6] via-[#d946ef] to-[#8b5cf6] bg-clip-text text-transparent mb-3 bg-[length:200%_auto] animate-gradient">
+                            Admin Dashboard
                         </h1>
-                        <p className="text-[#a0a0b0]">
-                            Logged in as: <span className="font-semibold text-white">{user?.email}</span>
+                        <p className="text-[#a0a0b0] flex items-center gap-2 text-lg">
+                            Welcome back, <span className="font-semibold text-white tracking-wide">{user?.email}</span>
                         </p>
                     </div>
                     
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.05, backgroundColor: "#2d2d3d" }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={logout}
-                        className="mt-4 md:mt-0 px-6 py-2 bg-[#1c1c2e] hover:bg-[#2d2d3d] text-white rounded-full font-medium text-sm border border-[#2d2d3d] transition-all"
+                        className="mt-6 md:mt-0 px-6 py-3 bg-[#1c1c2e] text-white rounded-xl font-medium text-sm border border-[#2d2d3d] shadow-lg shadow-purple-900/10 flex items-center gap-2 transition-all group"
                     >
-                        Logout Admin
-                    </button>
-                </div>
+                        <LogOut size={18} className="text-[#a0a0b0] group-hover:text-red-400 transition-colors" />
+                        <span>Logout System</span>
+                    </motion.button>
+                </motion.div>
 
-                {/* --- Tab Navigation --- */}
-                <div className="flex flex-wrap gap-2 border-b border-[#2d2d3d] mb-8 pb-1">
-                    {TABS.map(tab => {
+                {/* --- MODERN TAB NAVIGATION --- */}
+                <div className="flex flex-wrap gap-4 mb-8">
+                    {TABS.map((tab) => {
                         const isActive = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`py-3 px-6 text-[0.95rem] font-medium rounded-t-lg transition-all duration-200 ease-in-out
-                                    ${isActive 
-                                        ? 'bg-[#131324] text-white border-b-2 border-[#8b5cf6]' // Active State
-                                        : 'text-[#a0a0b0] hover:bg-[#ffffff0d] hover:text-white' // Inactive State
-                                    }`}
+                                className="relative px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 outline-none focus:outline-none"
                             >
-                                {tab.name}
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeTabBackground"
+                                        className="absolute inset-0 bg-[#8b5cf6] rounded-xl shadow-lg shadow-purple-500/30"
+                                        initial={false}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    />
+                                )}
+                                <span className={`relative z-10 flex items-center gap-2 ${isActive ? 'text-white' : 'text-[#a0a0b0] hover:text-white'}`}>
+                                    {tab.icon}
+                                    {tab.name}
+                                </span>
                             </button>
                         );
                     })}
                 </div>
 
-                {/* --- Tab Content: Renders ONLY the active management component --- */}
-                <section className="p-8 bg-[#131324] rounded-xl border border-[#2d2d3d] shadow-2xl min-h-[500px]">
-                    {renderActiveComponent()}
-                </section>
+                {/* --- CONTENT AREA (Animated Switch) --- */}
+                <div className="relative">
+                    <AnimatePresence mode="wait">
+                        <motion.section
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                            transition={{ duration: 0.3, ease: "easeInOut" }}
+                            className="p-8 bg-[#131324]/80 backdrop-blur-xl rounded-2xl border border-[#2d2d3d] shadow-2xl min-h-[600px] relative overflow-hidden"
+                        >
+                            {/* Inner Glow Effect */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#8b5cf6]/50 to-transparent opacity-50" />
+                            
+                            {renderActiveComponent()}
+                        </motion.section>
+                    </AnimatePresence>
+                </div>
                 
             </div>
         </div>

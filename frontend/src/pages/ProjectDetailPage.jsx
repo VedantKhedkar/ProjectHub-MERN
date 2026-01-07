@@ -11,7 +11,7 @@ const API_BASE_URL = 'http://localhost:5000/api/portfolio';
 const CREATE_ORDER_URL = 'http://localhost:5000/api/payment/create-order';
 const VERIFY_PAYMENT_URL = 'http://localhost:5000/api/payment/verify-payment';
 const RECEIPT_URL_BASE = 'http://localhost:5000/api/payment/receipt';
-const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; // Your Key ID
+const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; 
 
 function ProjectDetailPage() {
   const { id } = useParams();
@@ -21,6 +21,16 @@ function ProjectDetailPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const isAdmin = isLoggedIn && user?.email === 'admin@projecthub.com';
+
+  // --- IMAGE URL HELPER ---
+  // Checks if the image is from Cloudinary (starts with http) or Local
+  const getImageUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http') || path.startsWith('https')) {
+      return path;
+    }
+    return `http://localhost:5000${path}`;
+  };
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -54,11 +64,6 @@ function ProjectDetailPage() {
 
     if (isNaN(amountInRupees) || amountInRupees <= 0) {
       toast.error('Could not determine price. Please contact support.', { id: toastId });
-      return;
-    }
-    
-    if (RAZORPAY_KEY_ID === 'YOUR_RAZORPAY_KEY_ID_HERE') {
-      toast.error('Razorpay Key ID is not set. Please update this file.', { id: toastId });
       return;
     }
     
@@ -115,7 +120,7 @@ function ProjectDetailPage() {
           contact: user.contact || '',
         },
         theme: {
-          color: "#2563eb" // Updated to Blue-600
+          color: "#2563eb" 
         }
       };
       
@@ -127,7 +132,7 @@ function ProjectDetailPage() {
     }
   };
   
-  // --- (MODIFIED UI) Buy Request Handler ---
+  // --- Buy Request Handler ---
   const handleBuyRequest = () => {
     if (!isLoggedIn) {
         openLoginModal();
@@ -136,7 +141,6 @@ function ProjectDetailPage() {
 
     const toastId = toast(
       (t) => ( 
-        // Updated Toast UI to match Dark Theme
         <div className="flex flex-col gap-3 p-1">
           <p className="font-medium text-slate-200">
             Confirm purchase of <span className="text-white font-bold">{project.name}</span> for <span className="text-blue-400 font-bold">{project.price}</span>?
@@ -160,9 +164,9 @@ function ProjectDetailPage() {
       {
         duration: Infinity, 
         style: {
-          background: '#1e293b', // bg-slate-800
-          color: '#e2e8f0',      // text-slate-200
-          border: '1px solid #334155', // border-slate-700
+          background: '#1e293b', 
+          color: '#e2e8f0',      
+          border: '1px solid #334155', 
         },
       }
     );
@@ -203,10 +207,11 @@ function ProjectDetailPage() {
             )}
         </div>
         
-        {/* --- Image Slider --- */}
+        {/* --- Image Slider (UPDATED WITH URL HELPER) --- */}
         <div className="rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shadow-inner">
              <ImageSlider 
-                images={project.imageUrls} 
+                // We map over the URLs to ensure they are full valid links
+                images={project.imageUrls?.map(url => getImageUrl(url)) || []} 
                 projectName={project.name} 
              />
         </div>

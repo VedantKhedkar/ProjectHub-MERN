@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
-// Define all API endpoints
+// --- API CONFIG ---
 const API_URL = 'http://localhost:5000/api/admin/projects';
 const QUOTE_URL = 'http://localhost:5000/api/admin/projects/send-quote';
 const PROGRESS_URL = 'http://localhost:5000/api/admin/projects/update-progress';
@@ -17,6 +18,112 @@ const STATUS_OPTIONS = [
   'Delivered'
 ];
 
+// PAYMENT FILTER OPTIONS
+const PAYMENT_FILTER_OPTIONS = ['All', 'Not Quoted', '50% Paid', '100% Paid'];
+
+// --- PDF STYLES (Kept exactly as is) ---
+const pdfStyles = StyleSheet.create({
+  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 11, color: '#333' },
+  header: { marginBottom: 20, borderBottom: '1px solid #eee', paddingBottom: 10 },
+  title: { fontSize: 24, fontWeight: 'bold', color: '#2563eb', marginBottom: 5 }, 
+  subtitle: { fontSize: 10, color: '#666' },
+  section: { marginBottom: 15, padding: 10, border: '1px solid #eee', borderRadius: 5 },
+  sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 8, color: '#1e293b', textTransform: 'uppercase' },
+  row: { flexDirection: 'row', marginBottom: 5 },
+  label: { width: 100, fontWeight: 'bold', color: '#64748b' },
+  value: { flex: 1, color: '#0f172a' },
+  descriptionBox: { marginTop: 5, padding: 8, backgroundColor: '#f8fafc', borderRadius: 4, lineHeight: 1.5 },
+  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', color: '#94a3b8', fontSize: 9, borderTop: '1px solid #eee', paddingTop: 10 }
+});
+
+const getPdfUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path; 
+  return `http://localhost:5000${path}`;   
+};
+
+// --- PDF DOCUMENT COMPONENT ---
+const ProjectRequestDocument = ({ project }) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      <View style={pdfStyles.header}>
+        <Text style={pdfStyles.title}>PROJECT REQUEST</Text>
+        <Text style={pdfStyles.subtitle}>Ref ID: {project.id}</Text>
+        <Text style={pdfStyles.subtitle}>Generated on: {new Date().toLocaleDateString()}</Text>
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Client Information</Text>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>User Email:</Text>
+          <Text style={pdfStyles.value}>{project.user?.email || 'N/A'}</Text>
+        </View>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Contact:</Text>
+          <Text style={pdfStyles.value}>{project.user?.contact || 'N/A'}</Text>
+        </View>
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Project Overview</Text>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Project Name:</Text>
+          <Text style={pdfStyles.value}>{project.projectName}</Text>
+        </View>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Budget Est:</Text>
+          <Text style={pdfStyles.value}>{project.budgetEstimate}</Text>
+        </View>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Current Status:</Text>
+          <Text style={pdfStyles.value}>{project.status}</Text>
+        </View>
+        
+        <Text style={{ marginTop: 10, fontSize: 10, color: '#64748b' }}>Detailed Description:</Text>
+        <View style={pdfStyles.descriptionBox}>
+          <Text>
+            {project.projectDetails || project.description || 'No description found.'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Financial & Progress</Text>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Final Quote:</Text>
+          <Text style={pdfStyles.value}>{project.finalQuote ? `INR ${project.finalQuote}` : 'Not Quoted'}</Text>
+        </View>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Payment Status:</Text>
+          <Text style={pdfStyles.value}>{project.paymentStatus}</Text>
+        </View>
+        <View style={pdfStyles.row}>
+          <Text style={pdfStyles.label}>Progress:</Text>
+          <Text style={pdfStyles.value}>{project.completionPercentage}%</Text>
+        </View>
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Attachments</Text>
+        {project.attachments && project.attachments.length > 0 ? (
+          project.attachments.map((url, idx) => (
+            <Text key={idx} style={{ fontSize: 10, color: '#2563eb', marginBottom: 2 }}>
+              • File {idx + 1}: {getPdfUrl(url)}
+            </Text>
+          ))
+        ) : (
+          <Text style={{ fontSize: 10, fontStyle: 'italic', color: '#94a3b8' }}>No files attached.</Text>
+        )}
+      </View>
+
+      <View style={pdfStyles.footer}>
+        <Text>ProjectHub Internal Admin Document • Confidential</Text>
+      </View>
+    </Page>
+  </Document>
+);
+
+// --- MAIN COMPONENT ---
 function ProjectTracking() {
   const { token } = useAuth();
   const [projects, setProjects] = useState([]);
@@ -25,6 +132,17 @@ function ProjectTracking() {
   
   const [quoteInputs, setQuoteInputs] = useState({});
   const [progressInputs, setProgressInputs] = useState({});
+
+  // NEW: Track expanded row
+  const [expandedRowId, setExpandedRowId] = useState(null);
+
+  // NEW: Filter and Sort state
+  const [paymentFilter, setPaymentFilter] = useState('All');
+  const [sortOrder, setSortOrder] = useState('newest');
+
+  const toggleRow = (id) => {
+    setExpandedRowId(expandedRowId === id ? null : id);
+  };
 
   const fetchProjects = async () => {
     if (!token) {
@@ -64,6 +182,25 @@ function ProjectTracking() {
     }
   }, [token]);
 
+  // NEW: Function to get filtered and sorted projects
+  const getFilteredAndSortedProjects = () => {
+    let filtered = [...projects];
+
+    // Filtering by Payment Status
+    if (paymentFilter !== 'All') {
+      filtered = filtered.filter(p => p.paymentStatus === paymentFilter);
+    }
+
+    // Sorting by Date (assuming 'createdAt' field exists)
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  };
+
   // --- API Handlers ---
   const handleSendQuote = async (projectId) => {
     const finalQuote = quoteInputs[projectId];
@@ -78,7 +215,7 @@ function ProjectTracking() {
       fetchProjects(); 
       alert('Quote sent to user!');
     } catch (err) {
-      setError(`Failed to send quote for project ${projectId}.`);
+      alert('Failed to send quote.');
     }
   };
 
@@ -95,7 +232,7 @@ function ProjectTracking() {
       fetchProjects(); 
       alert('Progress updated!');
     } catch (err) {
-      setError(`Failed to update progress for project ${projectId}.`);
+      alert('Failed to update progress.');
     }
   };
 
@@ -108,11 +245,10 @@ function ProjectTracking() {
         prevProjects.map(p => p.id === projectId ? { ...p, status: newStatus } : p)
       );
     } catch (err) {
-      setError(`Failed to update status for project ${projectId}.`);
+      alert('Failed to update status.');
     }
   };
 
-  // --- Input Change Handlers ---
   const handleQuoteChange = (projectId, value) => {
     setQuoteInputs(prev => ({ ...prev, [projectId]: value }));
   };
@@ -121,192 +257,252 @@ function ProjectTracking() {
     setProgressInputs(prev => ({ ...prev, [projectId]: value }));
   };
 
-  // --- Theme Classes ---
-  const inputClass = "bg-slate-900 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-slate-500 transition-colors";
-  const selectClass = "bg-slate-900 border border-slate-700 text-white text-xs font-medium rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 transition-colors cursor-pointer hover:border-slate-600";
+  // --- Styles ---
+  const inputClass = "bg-slate-900 border border-slate-700 text-white text-xs rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 block w-full px-2 py-1 transition-colors";
+  const selectClass = "bg-slate-900 border border-slate-700 text-white text-xs font-medium rounded focus:ring-1 focus:ring-blue-500 block w-full py-1 px-2 cursor-pointer hover:border-slate-600";
 
-  if (loading) return <p className="text-slate-400 animate-pulse text-center py-10">Loading project requests...</p>;
-  if (error) return <p className="text-red-400 font-semibold bg-red-900/20 p-4 rounded border border-red-900/50">{error}</p>;
+  if (loading) return <p className="text-slate-400 animate-pulse text-center py-10">Loading...</p>;
+  if (error) return <p className="text-red-400 text-center py-10">{error}</p>;
+
+  const displayedProjects = getFilteredAndSortedProjects();
 
   return (
     <div className="space-y-6">
       
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex justify-between items-center pb-4 border-b border-slate-800">
         <h3 className="text-xl font-bold text-white flex items-center gap-2">
            <span className="text-blue-500">●</span> Project Requests 
-           <span className="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded-full ml-2 border border-slate-600">{projects.length}</span>
+           <span className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded-full ml-2 border border-slate-600">{projects.length}</span>
         </h3>
-        
-        <button 
-            onClick={fetchProjects} 
-            className="px-4 py-2 bg-slate-800 text-blue-400 border border-slate-700 rounded-lg text-sm font-medium hover:bg-slate-700 hover:text-white hover:border-slate-600 transition-all shadow-sm"
-        >
-            Refresh Data
+        <button onClick={fetchProjects} className="px-3 py-1.5 bg-slate-800 text-blue-400 border border-slate-700 rounded text-xs font-medium hover:bg-slate-700 hover:text-white transition-all">
+           Refresh
         </button>
       </div>
       
+      {/* NEW: Filter and Sort Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-slate-800 p-3 rounded-lg border border-slate-700">
+        
+        {/* Payment Filter */}
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+          <label htmlFor="paymentFilter" className="text-sm text-slate-400 font-medium">Filter Payment:</label>
+          <select
+            id="paymentFilter"
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="bg-slate-900 border border-slate-700 text-white text-xs font-medium rounded focus:ring-1 focus:ring-blue-500 block py-1 px-2 cursor-pointer hover:border-slate-600"
+          >
+            {PAYMENT_FILTER_OPTIONS.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Sort Order */}
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+          <label htmlFor="sortOrder" className="text-sm text-slate-400 font-medium">Sort Date:</label>
+          <select
+            id="sortOrder"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="bg-slate-900 border border-slate-700 text-white text-xs font-medium rounded focus:ring-1 focus:ring-blue-500 block py-1 px-2 cursor-pointer hover:border-slate-600"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+
       {projects.length === 0 ? (
         <div className="text-center py-16 bg-slate-800/50 rounded-xl border border-dashed border-slate-700">
-             <p className="text-slate-400 font-medium">No project requests submitted yet.</p>
-             <p className="text-slate-500 text-sm mt-1">New submissions will appear here.</p>
+             <p className="text-slate-400 text-sm">No project requests found.</p>
         </div>
       ) : (
-        // Table Container
         <div className="overflow-hidden bg-slate-800 rounded-xl border border-slate-700 shadow-xl">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-700">
-                
-              {/* Table Header */}
-              <thead className="bg-slate-900/50">
+            <table className="min-w-full text-left text-sm text-slate-400">
+              <thead className="bg-slate-900/50 uppercase font-bold text-xs">
                 <tr>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Client & Project</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Attachments</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider w-64">Status & Payment</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Quote (INR)</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Progress</th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th> 
+                  <th className="px-4 py-3">Client & Project</th>
+                  <th className="px-4 py-3 w-48">Status</th>
+                  <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3 w-32">Quote (INR)</th>
+                  <th className="px-4 py-3 w-32">Progress</th>
+                  <th className="px-4 py-3 text-center w-16">View</th>
                 </tr>
               </thead>
-
-              {/* Table Body */}
               <tbody className="divide-y divide-slate-700">
-                {projects.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-700/30 transition-colors group">
-                    
-                    {/* Client & Project Info */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                          <div className="flex-shrink-0 h-8 w-8 rounded bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold text-xs">
-                              {p.projectName.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="ml-3">
-                              <div className="text-sm font-bold text-white mb-0.5">{p.projectName}</div>
-                              <div className="text-xs text-slate-400 font-mono mb-1">{p.user.email}</div>
-                              <div className="inline-block px-2 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300 border border-slate-600">
-                                Est. {p.budgetEstimate}
+                {displayedProjects.map((p) => {
+                  const isExpanded = expandedRowId === p.id;
+                  
+                  return (
+                    // React Fragment to allow two TRs per map iteration
+                    < >
+                      {/* --- MAIN ROW (Collapsed View) --- */}
+                      <tr key={p.id} className={`hover:bg-slate-700/30 transition-colors ${isExpanded ? 'bg-slate-700/20' : ''}`}>
+                        
+                        {/* 1. Project Info */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white font-bold text-xs">
+                                  {p.projectName.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                  <div className="font-bold text-white text-sm">{p.projectName}</div>
+                                  <div className="text-[10px] text-slate-500">{p.user.email}</div>
                               </div>
                           </div>
-                      </div>
-                    </td>
-                    
-                    {/* Attachments */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {p.attachments && p.attachments.length > 0 ? (
-                        <div className="flex flex-col gap-1.5">
-                            {p.attachments.map((url, index) => (
-                                <a 
-                                    key={index}
-                                    href={`http://localhost:5000${url}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-white text-xs flex items-center gap-1.5 transition-colors bg-slate-900/50 px-2 py-1 rounded border border-slate-700/50 hover:border-slate-600 hover:bg-slate-700"
-                                >
-                                    <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
-                                    File {index + 1}
-                                </a>
-                            ))}
-                        </div>
-                      ) : (
-                        <span className="text-slate-600 text-xs italic">No attachments</span>
-                      )}
-                    </td>
-                    
-                    {/* Status & Payment Badge */}
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-2">
+                        </td>
+
+                        {/* 2. Status Select */}
+                        <td className="px-4 py-3">
                           <select
                             value={p.status}
                             onChange={(e) => handleStatusChange(p.id, e.target.value)}
                             className={selectClass}
+                            onClick={(e) => e.stopPropagation()} // Prevent row toggle
                           >
                             {STATUS_OPTIONS.map(status => (
                               <option key={status} value={status}>{status}</option>
                             ))}
                           </select>
-                          
-                          <div>
-                             <span className={`px-2.5 py-1 inline-flex text-[10px] font-bold uppercase tracking-wide rounded-md border 
-                                ${p.paymentStatus === 'Paid' 
-                                    ? 'bg-emerald-900/20 text-emerald-400 border-emerald-800' 
-                                    : 'bg-amber-900/20 text-amber-500 border-amber-800'}`}>
-                                {p.paymentStatus}
-                             </span>
-                          </div>
-                      </div>
-                    </td>
+                        </td>
 
-                    {/* Quote Input */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {p.status === "Pending Admin Review" ? (
-                        <div className="flex items-center gap-2">
-                          <div className="relative w-28">
-                              <span className="absolute left-2.5 top-2 text-slate-500 text-xs">₹</span>
+                        {/* 3. Payment Badge */}
+                        <td className="px-4 py-3">
+                          <span className={`px-2 py-0.5 inline-flex text-[10px] font-bold uppercase tracking-wide rounded border 
+                            ${p.paymentStatus === 'Paid' 
+                                ? 'bg-emerald-900/20 text-emerald-400 border-emerald-800' 
+                                : 'bg-amber-900/20 text-amber-500 border-amber-800'}`}>
+                            {p.paymentStatus}
+                          </span>
+                        </td>
+
+                        {/* 4. Quote Input */}
+                        <td className="px-4 py-3">
+                           <div className="flex items-center gap-1">
+                              <span className="text-slate-500 text-xs">₹</span>
                               <input
                                 type="number"
-                                placeholder="Amount"
+                                placeholder="0"
                                 value={quoteInputs[p.id] || ''}
                                 onChange={(e) => handleQuoteChange(p.id, e.target.value)}
-                                className={`${inputClass} pl-6 py-1.5`}
+                                className={inputClass}
+                                onClick={(e) => e.stopPropagation()}
                               />
-                          </div>
-                          <button
-                            onClick={() => handleSendQuote(p.id)}
-                            className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-lg shadow-emerald-900/20"
-                            title="Send Quote"
-                          >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-sm font-mono font-bold text-emerald-400 bg-emerald-900/10 px-3 py-1.5 rounded-lg border border-emerald-900/30">
-                            ₹ {p.finalQuote}
-                        </span>
-                      )}
-                    </td>
-                    
-                    {/* Progress Input */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {p.status !== "Pending Admin Review" && p.paymentStatus !== "Not Quoted" ? (
-                        <div className="flex items-center gap-2">
-                           <div className="relative w-20">
+                              <button onClick={(e) => { e.stopPropagation(); handleSendQuote(p.id); }} className="text-emerald-500 hover:text-emerald-400" title="Save Quote">
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              </button>
+                           </div>
+                        </td>
+
+                        {/* 5. Progress Bar & Input */}
+                        <td className="px-4 py-3">
+                           <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-500 rounded-full" style={{ width: `${progressInputs[p.id] || 0}%` }}></div>
+                              </div>
                               <input
                                 type="number"
-                                min="0"
-                                max="100"
+                                min="0" max="100"
                                 value={progressInputs[p.id] || 0}
                                 onChange={(e) => handleProgressChange(p.id, e.target.value)}
-                                className={`${inputClass} pr-6 py-1.5 text-center`}
+                                onBlur={() => handleUpdateProgress(p.id)} // Save on blur
+                                className={`${inputClass} w-12 text-center`}
+                                onClick={(e) => e.stopPropagation()}
                               />
-                              <span className="absolute right-2 top-2 text-slate-500 text-xs">%</span>
                            </div>
-                          <button
-                            onClick={() => handleUpdateProgress(p.id)}
-                            className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition shadow-lg shadow-blue-900/20"
-                          >
-                            Set
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-600 italic pl-2">Waiting for quote...</span>
-                      )}
-                    </td>
+                        </td>
 
-                    {/* Actions */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {(p.status === 'Awaiting Delivery' || p.status === 'Delivered') ? (
-                        <Link 
-                          to={`/project/delivery/${p.id}`}
-                          className="inline-flex items-center px-3 py-1.5 bg-slate-700 text-blue-400 border border-slate-600 text-xs font-semibold rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-500 transition-all shadow-sm"
-                        >
-                          Files & Delivery
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-slate-600 pl-4">--</span>
+                        {/* 6. Expand Button */}
+                        <td className="px-4 py-3 text-center">
+                          <button 
+                            onClick={() => toggleRow(p.id)}
+                            className={`p-1.5 rounded hover:bg-slate-600 transition-all ${isExpanded ? 'text-blue-400 rotate-180 transform' : 'text-slate-400'}`}
+                          >
+                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* --- EXPANDED ROW (Details) --- */}
+                      {isExpanded && (
+                        <tr className="bg-slate-900/50 border-b border-slate-700 shadow-inner">
+                          <td colSpan="6" className="p-0">
+                            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8 animate-fadeIn">
+                              
+                              {/* Left: Details & Attachments */}
+                              <div className="space-y-4">
+                                <div>
+                                  <h4 className="text-xs font-bold text-slate-300 uppercase mb-2">Detailed Description</h4>
+                                  <div className="bg-slate-800 p-3 rounded border border-slate-700 text-xs text-slate-300 leading-relaxed">
+                                    {p.projectDetails || p.description || "No specific details provided."}
+                                  </div>
+                                </div>
+                                
+                                <div>
+                                  <h4 className="text-xs font-bold text-slate-300 uppercase mb-2">Attachments</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {p.attachments && p.attachments.length > 0 ? (
+                                      p.attachments.map((url, index) => (
+                                        <a key={index} href={getPdfUrl(url)} target="_blank" rel="noreferrer"
+                                          className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 border border-slate-600 rounded text-xs text-blue-400 hover:text-white hover:border-blue-500 transition-colors">
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" /></svg>
+                                          Attachment {index + 1}
+                                        </a>
+                                      ))
+                                    ) : (
+                                      <span className="text-xs text-slate-600 italic">No files attached</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Right: Actions */}
+                              <div className="space-y-4 border-l border-slate-700 pl-8">
+                                <h4 className="text-xs font-bold text-slate-300 uppercase mb-2">Project Actions</h4>
+                                
+                                <div className="grid grid-cols-2 gap-3">
+                                  {/* PDF Export */}
+                                  <PDFDownloadLink document={<ProjectRequestDocument project={p} />} fileName={`request-${p.id.slice(-6)}.pdf`} className="w-full">
+                                    {({ loading }) => (
+                                      <button disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-700 border border-slate-600 hover:bg-slate-600 text-white text-xs font-medium rounded transition-all">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        {loading ? 'Generating...' : 'Export PDF'}
+                                      </button>
+                                    )}
+                                  </PDFDownloadLink>
+
+                                  {/* Deliver Button (Conditional) */}
+                                  {(p.status === 'In Progress' || p.status === 'Awaiting Final Payment' || p.status === 'Delivered') && (
+                                    <Link to={`/project/delivery/${p.id}`} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 border border-blue-500 hover:bg-blue-700 text-white text-xs font-medium rounded transition-all">
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                                      Deliver Files
+                                    </Link>
+                                  )}
+                                </div>
+
+                                <div className="bg-slate-800 p-3 rounded mt-4">
+                                  <div className="flex justify-between text-xs mb-1">
+                                    <span className="text-slate-400">Budget Estimate:</span>
+                                    <span className="text-slate-200">₹ {p.budgetEstimate}</span>
+                                  </div>
+                                  <div className="flex justify-between text-xs font-bold">
+                                    <span className="text-slate-400">Final Quote:</span>
+                                    <span className="text-emerald-400">₹ {p.finalQuote || '0'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </ >
+                  );
+                })}
               </tbody>
             </table>
           </div>

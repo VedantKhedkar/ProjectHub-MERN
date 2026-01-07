@@ -1,19 +1,45 @@
 import multer from 'multer';
-import path from 'path';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import { cloudinary } from '../utils/cloudinaryConfig.js'; // Ensure this path is correct
 
-// --- Multer Disk Storage Configuration ---
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(process.cwd(), 'uploads/'));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    // Use the original filename to keep it recognizable
-    cb(null, uniqueSuffix + '-' + file.originalname);
+// --- Cloudinary Storage Configuration ---
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    // 1. Initialize default variables
+    let folderName = 'projecthub_uploads';
+    let resourceType = 'auto'; // 'auto' works for images/PDFs/Videos
+
+    // 2. Logic to handle ZIP/RAR files (Must be 'raw')
+    if (
+      file.mimetype.includes('zip') || 
+      file.mimetype.includes('rar') || 
+      file.mimetype.includes('compressed') ||
+      file.mimetype === 'application/octet-stream'
+    ) {
+      folderName = 'projecthub_code';
+      resourceType = 'raw'; // CRITICAL: Zips must be 'raw' or download fails
+    } 
+    // 3. Logic to handle Videos
+    else if (file.mimetype.startsWith('video/')) {
+      folderName = 'projecthub_videos';
+      resourceType = 'video';
+    } 
+    // 4. Logic for Images/PDFs
+    else {
+      folderName = 'projecthub_assets';
+    }
+
+    return {
+      folder: folderName,
+      resource_type: resourceType,
+      // Create a unique filename (Cloudinary ignores extensions in public_id usually)
+      public_id: `${Date.now()}-${file.originalname.replace(/\.[^/.]+$/, "")}`, 
+    };
   },
 });
 
-// --- File Filters ---
+// --- File Filters (Kept exactly as you had them) ---
 const videoFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('video/')) {
     cb(null, true);
@@ -23,7 +49,13 @@ const videoFilter = (req, file, cb) => {
 };
 
 const codeFilter = (req, file, cb) => {
-  if (file.mimetype === 'application/zip' || file.mimetype === 'application/x-zip-compressed' || file.mimetype === 'application/x-rar-compressed') {
+  // Broad check for zip/rar types
+  if (
+    file.mimetype.includes('zip') || 
+    file.mimetype.includes('rar') || 
+    file.mimetype.includes('compressed') || 
+    file.mimetype === 'application/octet-stream'
+  ) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type. Only .zip or .rar files are allowed.'), false);
@@ -41,9 +73,15 @@ const assetFilter = (req, file, cb) => {
 // --- 1. Custom Project File Upload Handler (User) ---
 const projectUpload = multer({
   storage: storage,
-  limits: { fileSize: 1024 * 1024 * 50 }, 
-  fileFilter: (req, file, cb) => { // General filter
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf' || file.mimetype === 'application/zip' || file.mimetype === 'video/mp4') {
+  limits: { fileSize: 1024 * 1024 * 50 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    if (
+      file.mimetype.startsWith('image/') || 
+      file.mimetype === 'application/pdf' || 
+      file.mimetype.includes('zip') || 
+      file.mimetype.includes('rar') || 
+      file.mimetype.startsWith('video/')
+    ) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type.'), false);
@@ -58,27 +96,27 @@ export const portfolioImageUpload = multer({
   fileFilter: assetFilter,
 }).array('portfolioImages', 5);
 
-// --- 3. (NEW) DELIVERY FILE UPLOAD HANDLERS (Admin) ---
+// --- 3. DELIVERY FILE UPLOAD HANDLERS (Admin) ---
 
 // Handler for Setup Video (1 file, 200MB limit)
 export const uploadSetupVideo = multer({
   storage: storage,
   limits: { fileSize: 1024 * 1024 * 200 },
   fileFilter: videoFilter,
-}).single('setupVideo'); // Expects a single file from a field named 'setupVideo'
+}).single('setupVideo');
 
 // Handler for Project Code (1 file, 100MB limit)
 export const uploadProjectCode = multer({
   storage: storage,
   limits: { fileSize: 1024 * 1024 * 100 },
   fileFilter: codeFilter,
-}).single('projectCode'); // Expects a single file from 'projectCode'
+}).single('projectCode');
 
 // Handler for Project Assets (Multiple files, 20MB limit)
 export const uploadProjectAssets = multer({
   storage: storage,
   limits: { fileSize: 1024 * 1024 * 20 },
   fileFilter: assetFilter,
-}).array('projectAssets', 10); // Expects multiple files from 'projectAssets'
+}).array('projectAssets', 10);
 
 export default projectUpload;

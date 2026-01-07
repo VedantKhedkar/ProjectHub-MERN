@@ -11,6 +11,13 @@ function PortfolioManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // --- NEW STATE: Toggle Add Form ---
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // --- NEW STATE: Search & Sort ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState('newest');
+
   const [newProjectData, setNewProjectData] = useState({
     name: '', description: '', features: '', techStacks: '', demoUrl: '', price: '',
   });
@@ -42,6 +49,38 @@ function PortfolioManagement() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  // --- FILTERING & SORTING LOGIC ---
+  const getProcessedProjects = () => {
+    let processed = [...projects];
+
+    // 1. Filter
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        processed = processed.filter(p => 
+            p.name.toLowerCase().includes(query) ||
+            p.description.toLowerCase().includes(query) ||
+            (p.techStacks && p.techStacks.some(stack => stack.toLowerCase().includes(query)))
+        );
+    }
+
+    // 2. Sort
+    processed.sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0); // Fallback to 0 if no date
+        const dateB = new Date(b.createdAt || 0);
+
+        switch (sortOption) {
+            case 'newest': return dateB - dateA;
+            case 'oldest': return dateA - dateB;
+            case 'name': return a.name.localeCompare(b.name);
+            default: return 0;
+        }
+    });
+
+    return processed;
+  };
+
+  const displayedProjects = getProcessedProjects();
 
   // --- HANDLERS for Creating New Project ---
   const handleNewChange = (e) => {
@@ -89,6 +128,9 @@ function PortfolioManagement() {
         setNewProjectData({ name: '', description: '', features: '', techStacks: '', demoUrl: '', price: '' });
         setNewFiles(null);
         e.target.reset();
+        
+        // Close the form on success
+        setShowAddForm(false);
 
     } catch (err) {
         setError(err.response?.data?.message || 'Failed to add project. Check token.');
@@ -108,6 +150,8 @@ function PortfolioManagement() {
     setEditFiles(null);
     setSubmitMessage('');
     setError('');
+    // Close add form if open
+    setShowAddForm(false);
   };
 
   const handleEditChange = (e) => {
@@ -176,6 +220,8 @@ function PortfolioManagement() {
   // --- COMMON UI CLASSES ---
   const inputClass = "w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all";
   const labelClass = "block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5";
+  const searchInputClass = "w-full md:w-64 bg-slate-900 border border-slate-700 text-white text-xs rounded pl-9 pr-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none placeholder-slate-500 transition-colors";
+  const selectClass = "bg-slate-900 border border-slate-700 text-white text-xs font-medium rounded focus:ring-1 focus:ring-blue-500 block py-2 px-3 cursor-pointer hover:border-slate-600 outline-none";
 
   if (loading) return <p className="text-slate-400 animate-pulse text-center py-10">Loading portfolio data...</p>;
   if (error && !projects.length) return <p className="text-red-400 font-semibold bg-red-900/20 p-4 rounded border border-red-900">{error}</p>;
@@ -198,6 +244,7 @@ function PortfolioManagement() {
             {error && <div className="mb-6 p-3 bg-red-900/20 border border-red-800 text-red-400 rounded-lg text-sm font-medium">{error}</div>}
 
             <form onSubmit={handleUpdate} className="space-y-6" encType="multipart/form-data"> 
+                {/* Form fields same as before... */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className={labelClass}>Project Name</label>
@@ -225,7 +272,7 @@ function PortfolioManagement() {
                         <input type="text" name="techStacks" value={editFormData.techStacks} onChange={handleEditChange} required className={inputClass} />
                     </div>
                     <div>
-                         <label className={labelClass}>Features</label>
+                          <label className={labelClass}>Features</label>
                         <input type="text" name="features" value={editFormData.features} onChange={handleEditChange} className={inputClass} />
                     </div>
                 </div>
@@ -262,134 +309,198 @@ function PortfolioManagement() {
         </div>
       )}
 
-      {/* --- 2. ADD NEW PROJECT FORM --- */}
+      {/* --- 2. ADD NEW PROJECT SECTION --- */}
       {!editingProject && (
-        <div className="p-8 bg-slate-800 rounded-xl border border-slate-700 shadow-lg">
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-700">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-green-400">+</span> Add New Project
-              </h3>
-              <span className="text-xs text-slate-500 uppercase tracking-wider font-bold">Portfolio Manager</span>
-          </div>
-          
-          {message && <div className="mb-6 p-3 bg-green-900/20 border border-green-800 text-green-400 rounded-lg text-sm font-medium">{message}</div>}
-          {error && <div className="mb-6 p-3 bg-red-900/20 border border-red-800 text-red-400 rounded-lg text-sm font-medium">{error}</div>}
-          
-          <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data"> 
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                  <label className={labelClass}>Project Name</label>
-                  <input type="text" name="name" placeholder="e.g., E-commerce Platform" value={newProjectData.name} onChange={handleNewChange} required className={inputClass} />
-              </div>
-              <div>
-                  <label className={labelClass}>Live Demo URL</label>
-                  <input type="text" name="demoUrl" placeholder="https://..." value={newProjectData.demoUrl} onChange={handleNewChange} required className={inputClass} />
-              </div>
-            </div>
+        <>
+            {/* A. BUTTON TO OPEN FORM (Visible when form is closed) */}
+            {!showAddForm && (
+                <div className="flex justify-end">
+                    <button 
+                        onClick={() => setShowAddForm(true)}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-900/20 transition-all transform hover:scale-[1.02]"
+                    >
+                        <span className="text-xl leading-none">+</span> Create New Project
+                    </button>
+                </div>
+            )}
 
-            <div>
-                <label className={labelClass}>Price</label>
-                <input type="text" name="price" placeholder="e.g., INR 50000" value={newProjectData.price} onChange={handleNewChange} required className={inputClass} />
-            </div>
-            
-            <div>
-                <label className={labelClass}>Description</label>
-                <textarea name="description" placeholder="Brief project overview..." value={newProjectData.description} onChange={handleNewChange} required rows="2" className={inputClass} />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                  <label className={labelClass}>Tech Stack <span className="text-slate-500 text-[10px] normal-case ml-1">(Comma separated)</span></label>
-                  <input type="text" name="techStacks" placeholder="React, Node, Tailwind..." value={newProjectData.techStacks} onChange={handleNewChange} required className={inputClass} />
-              </div>
-              <div>
-                  <label className={labelClass}>Features <span className="text-slate-500 text-[10px] normal-case ml-1">(Comma separated)</span></label>
-                  <input type="text" name="features" placeholder="Auth, Payment, Dashboard..." value={newProjectData.features} onChange={handleNewChange} className={inputClass} />
-              </div>
-            </div>
-            
-            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
-              <label htmlFor="newImages" className={`${labelClass} mb-2`}>Project Images (Max 5)</label>
-              <input 
-                type="file" 
-                name="portfolioImages" 
-                id="newImages"
-                multiple 
-                accept="image/*"
-                onChange={handleNewChange} 
-                required
-                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
-              />
-            </div>
-            
-            <button type="submit" className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-900/20 hover:shadow-blue-500/20 transition-all transform hover:scale-[1.01]">
-              Add Project to Portfolio
-            </button>
-          </form>
-        </div>
+            {/* B. THE FORM (Visible when showAddForm is true) */}
+            {showAddForm && (
+                <div className="p-8 bg-slate-800 rounded-xl border border-slate-700 shadow-lg animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-700">
+                        <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                            <span className="text-green-400">+</span> Add New Project
+                        </h3>
+                        {/* Close Icon Button */}
+                        <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-white transition-colors">
+                            ✕
+                        </button>
+                    </div>
+                    
+                    {message && <div className="mb-6 p-3 bg-green-900/20 border border-green-800 text-green-400 rounded-lg text-sm font-medium">{message}</div>}
+                    {error && <div className="mb-6 p-3 bg-red-900/20 border border-red-800 text-red-400 rounded-lg text-sm font-medium">{error}</div>}
+                    
+                    <form onSubmit={handleSubmit} className="space-y-6" encType="multipart/form-data"> 
+                        {/* Add Form Inputs (Same as provided previously) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className={labelClass}>Project Name</label>
+                                <input type="text" name="name" placeholder="e.g., E-commerce Platform" value={newProjectData.name} onChange={handleNewChange} required className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Live Demo URL</label>
+                                <input type="text" name="demoUrl" placeholder="https://..." value={newProjectData.demoUrl} onChange={handleNewChange} required className={inputClass} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className={labelClass}>Price</label>
+                            <input type="text" name="price" placeholder="e.g., INR 50000" value={newProjectData.price} onChange={handleNewChange} required className={inputClass} />
+                        </div>
+                        
+                        <div>
+                            <label className={labelClass}>Description</label>
+                            <textarea name="description" placeholder="Brief project overview..." value={newProjectData.description} onChange={handleNewChange} required rows="2" className={inputClass} />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className={labelClass}>Tech Stack <span className="text-slate-500 text-[10px] normal-case ml-1">(Comma separated)</span></label>
+                                <input type="text" name="techStacks" placeholder="React, Node, Tailwind..." value={newProjectData.techStacks} onChange={handleNewChange} required className={inputClass} />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Features <span className="text-slate-500 text-[10px] normal-case ml-1">(Comma separated)</span></label>
+                                <input type="text" name="features" placeholder="Auth, Payment, Dashboard..." value={newProjectData.features} onChange={handleNewChange} className={inputClass} />
+                            </div>
+                        </div>
+                        
+                        <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+                            <label htmlFor="newImages" className={`${labelClass} mb-2`}>Project Images (Max 5)</label>
+                            <input 
+                                type="file" 
+                                name="portfolioImages" 
+                                id="newImages"
+                                multiple 
+                                accept="image/*"
+                                onChange={handleNewChange} 
+                                required
+                                className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+                            />
+                        </div>
+                        
+                        <div className="flex gap-4">
+                            <button type="submit" className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-900/20 transition-all">
+                                Add Project
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => setShowAddForm(false)}
+                                className="px-6 py-3.5 bg-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-600 border border-slate-600 transition-all"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+        </>
       )}
 
 
       {/* --- 3. EXISTING PROJECTS LIST --- */}
       <div>
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-            Existing Portfolio <span className="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded-full border border-slate-600">{projects.length} Items</span>
-          </h3>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-3">
+                Existing Portfolio <span className="bg-slate-700 text-slate-300 text-xs px-2.5 py-1 rounded-full border border-slate-600">{projects.length} Items</span>
+              </h3>
+
+              {/* SEARCH & SORT CONTROLS */}
+              <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                  {/* Search */}
+                  <div className="relative w-full md:w-auto">
+                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                     </div>
+                     <input 
+                       type="text" 
+                       placeholder="Search projects..." 
+                       value={searchQuery}
+                       onChange={(e) => setSearchQuery(e.target.value)}
+                       className={searchInputClass}
+                     />
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-2">
+                      <select 
+                        value={sortOption} 
+                        onChange={(e) => setSortOption(e.target.value)} 
+                        className={selectClass}
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="name">Name (A-Z)</option>
+                      </select>
+                  </div>
+              </div>
+          </div>
 
           <div className="space-y-4">
-            {projects.map(p => (
-              <div 
-                key={p.id} 
-                className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-500 hover:shadow-lg transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group"
-              >
-                <div className="flex-grow space-y-2">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <p className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{p.name}</p>
-                    <span className="text-xs font-bold text-blue-300 bg-blue-900/30 border border-blue-500/30 px-2.5 py-0.5 rounded-md">
-                        {p.price}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-400 line-clamp-1">{p.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-                      <span className="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">STACK</span> 
-                      {arrayToString(p.techStacks)}
-                  </div>
-                </div>
-                
-                {/* --- Action Buttons --- */}
-                <div className="flex items-center gap-3 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-700"> 
-                  {/* Edit Details Button */}
-                  <button
-                    onClick={() => startEdit(p)}
-                    className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-white bg-amber-600 rounded-lg hover:bg-amber-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!!editingProject}
+            {displayedProjects.length > 0 ? (
+                displayedProjects.map(p => (
+                  <div 
+                    key={p.id} 
+                    className="p-6 bg-slate-800 rounded-xl border border-slate-700 hover:border-slate-500 hover:shadow-lg transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group"
                   >
-                    Edit
-                  </button>
-                  
-                  {/* Manage Files Button */}
-                  <Link
-                    to={`/admin/portfolio-files/${p.id}`}
-                    className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-300 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 hover:text-white transition-colors text-center"
-                  >
-                    Files
-                  </Link>
+                    <div className="flex-grow space-y-2">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">{p.name}</p>
+                        <span className="text-xs font-bold text-blue-300 bg-blue-900/30 border border-blue-500/30 px-2.5 py-0.5 rounded-md">
+                            {p.price}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-400 line-clamp-1">{p.description}</p>
+                      <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                          <span className="bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700">STACK</span> 
+                          {arrayToString(p.techStacks)}
+                      </div>
+                    </div>
+                    
+                    {/* --- Action Buttons --- */}
+                    <div className="flex items-center gap-3 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-700"> 
+                      {/* Edit Details Button */}
+                      <button
+                        onClick={() => startEdit(p)}
+                        className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-white bg-amber-600 rounded-lg hover:bg-amber-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!!editingProject}
+                      >
+                        Edit
+                      </button>
+                      
+                      {/* Manage Files Button */}
+                      <Link
+                        to={`/admin/portfolio-files/${p.id}`}
+                        className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-slate-300 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 hover:text-white transition-colors text-center"
+                      >
+                        Files
+                      </Link>
 
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => handleDelete(p.id)}
-                    className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-white bg-red-600/90 rounded-lg hover:bg-red-700 shadow-sm transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-            {projects.length === 0 && !loading && (
+                      {/* Delete Button */}
+                      <button
+                        onClick={() => handleDelete(p.id)}
+                        className="flex-1 md:flex-none px-4 py-2 text-xs font-bold uppercase tracking-wide text-white bg-red-600/90 rounded-lg hover:bg-red-700 shadow-sm transition-colors"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+            ) : (
                 <div className="text-center py-16 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/30">
-                    <p className="text-slate-500 font-medium">No projects found in portfolio.</p>
-                    <p className="text-slate-600 text-sm mt-1">Use the form above to add your first project.</p>
+                    <p className="text-slate-500 font-medium">
+                        {searchQuery ? "No projects match your search." : "No projects found in portfolio."}
+                    </p>
+                    {!searchQuery && <p className="text-slate-600 text-sm mt-1">Use the button above to add your first project.</p>}
                 </div>
             )}
           </div>
