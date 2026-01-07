@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { X } from 'lucide-react';
 import { toast } from 'react-hot-toast'; // <-- 1. Import toast
 
-const API_URL = 'http://localhost:5000/api/auth/login';
+import BASE_URL from '../config';
+const API_URL = `${BASE_URL}/api/auth/login`;
 
 function LoginModal() {
   const { login, closeLoginModal } = useAuth();

@@ -3,8 +3,10 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { format } from 'date-fns';
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import BASE_URL from '../config';
 
-const API_URL = 'http://localhost:5000/api/admin/payments';
+
+const API_URL = `${BASE_URL}/api/admin/payments`;
 
 // --- PDF STYLES ---
 const pdfStyles = StyleSheet.create({

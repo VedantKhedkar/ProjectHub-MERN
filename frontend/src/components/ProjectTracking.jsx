@@ -3,12 +3,13 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Link } from 'react-router-dom';
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import BASE_URL from '../config';
 
-// --- API CONFIG ---
-const API_URL = 'http://localhost:5000/api/admin/projects';
-const QUOTE_URL = 'http://localhost:5000/api/admin/projects/send-quote';
-const PROGRESS_URL = 'http://localhost:5000/api/admin/projects/update-progress';
-const STATUS_URL = 'http://localhost:5000/api/admin/projects/status'; 
+const API_URL = `${BASE_URL}/api/admin/projects`;
+const QUOTE_URL = `${BASE_URL}/api/admin/projects/send-quote`;
+// Add other URLs if they exist in this file (like PROGRESS_URL, STATUS_URL)
+const PROGRESS_URL = `${BASE_URL}/api/admin/projects/update-progress`;
+const STATUS_URL = `${BASE_URL}/api/admin/projects/status`;
 
 const STATUS_OPTIONS = [
   'Pending Admin Review', 

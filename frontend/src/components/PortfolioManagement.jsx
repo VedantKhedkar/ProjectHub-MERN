@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Link } from 'react-router-dom'; 
+import BASE_URL from '../config';
 
-const API_URL = 'http://localhost:5000/api/portfolio';
+const API_URL = `${BASE_URL}/api/portfolio`;
 
 function PortfolioManagement() {
   const { token } = useAuth();

@@ -3,8 +3,10 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { format } from 'date-fns';
 
-const API_URL = 'http://localhost:5000/api/admin/pending-users';
-const APPROVE_URL = 'http://localhost:5000/api/admin/approve-user';
+import BASE_URL from '../config';
+
+const API_URL = `${BASE_URL}/api/admin/pending-users`;
+const APPROVE_URL = `${BASE_URL}/api/admin/approve-user`;
 
 function UserManagement() {
   const { token } = useAuth();

@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Link } from 'react-router-dom';
 import { Download, Video, FileArchive, Image } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api/projects/my-purchases';
+import BASE_URL from '../config';
+
+const API_URL = `${BASE_URL}/api/projects/my-purchases`;
 
 // --- HELPER: Force Cloudinary Download ---
 // This prevents videos/pdfs from just opening in a new tab.

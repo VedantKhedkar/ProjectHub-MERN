@@ -3,7 +3,9 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { format } from 'date-fns';
 
-const API_URL = 'http://localhost:5000/api/admin/buy-requests';
+import BASE_URL from '../config';
+
+const API_URL = `${BASE_URL}/api/admin/buy-requests`;
 
 function BuyRequestTracking() {
   const { token } = useAuth();

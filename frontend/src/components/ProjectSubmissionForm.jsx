@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
+import BASE_URL from '../config';
 
-const API_URL = 'http://localhost:5000/api/projects'; 
+
+const API_URL = `${BASE_URL}/api/projects`;
 
 const CATEGORIES = [
   'E-commerce', 'Social Media', 'Machine Learning', 'Custom Utility', 'Hardware', 'Other'

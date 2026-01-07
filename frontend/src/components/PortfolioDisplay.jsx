@@ -3,17 +3,20 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast'; 
+import BASE_URL from '../config'; // Make sure this is imported!
 
 // Icons
 const SearchIcon = () => (
   <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
 );
 
-const API_URL = 'http://localhost:5000/api/portfolio';
-const CREATE_ORDER_URL = 'http://localhost:5000/api/payment/create-order';
-const VERIFY_PAYMENT_URL = 'http://localhost:5000/api/payment/verify-payment';
-const RECEIPT_URL_BASE = 'http://localhost:5000/api/payment/receipt';
-const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; 
+// --- API CONFIGURATION USING BASE_URL ---
+const API_URL = `${BASE_URL}/api/portfolio`;
+const CREATE_ORDER_URL = `${BASE_URL}/api/payment/create-order`;
+const VERIFY_PAYMENT_URL = `${BASE_URL}/api/payment/verify-payment`;
+const RECEIPT_URL_BASE = `${BASE_URL}/api/payment/receipt`;
+
+const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl';
 
 function PortfolioDisplay() {
   const { isLoggedIn, token, user, openLoginModal } = useAuth();
@@ -27,15 +30,15 @@ function PortfolioDisplay() {
   const navigate = useNavigate();
   const isAdmin = isLoggedIn && user?.email === 'admin@projecthub.com';
 
-  // --- IMAGE URL HELPER (FIXES THE BUG) ---
+  // --- IMAGE URL HELPER (UPDATED FOR VERCEL) ---
   const getImageUrl = (path) => {
     if (!path) return null;
     // If it's a Cloudinary URL (starts with http or https), return it as is
     if (path.startsWith('http') || path.startsWith('https')) {
       return path;
     }
-    // If it's a local path, prepend the backend URL
-    return `http://localhost:5000${path}`;
+    // If it's a local path, prepend the BASE_URL (works for both localhost and Vercel)
+    return `${BASE_URL}${path}`; 
   };
 
   // Fetch Logic

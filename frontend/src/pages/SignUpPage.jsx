@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import BASE_URL from '../config';
 
-const API_URL = 'http://localhost:5000/api/auth/register';
+const API_URL = `${BASE_URL}/api/auth/register`;
 
 function SignUpPage() {
   const [formData, setFormData] = useState({
