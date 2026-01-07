@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv'; // Added for environment variable management
+import dotenv from 'dotenv'; 
 import prisma from './lib/prisma.js';
 import authRoutes from './routes/auth.js'; 
 import adminRoutes from './routes/admin.js';
@@ -8,25 +8,37 @@ import projectRoutes from './routes/project.js';
 import portfolioRoutes from './routes/portfolio.js';
 import paymentRoutes from './routes/payment.js'; 
 
-dotenv.config(); // Initialize dotenv to read your .env file
+dotenv.config(); 
 
 const app = express();
 
-// Use express.json() before routes
 app.use(express.json());
 
-// --- CORS Configuration (Production Ready) ---
-// Ensure "https://projecthub-client.vercel.app" matches your actual frontend Vercel URL exactly
+// --- CORS Configuration (UPDATED FIX) ---
+// This allows Localhost + ANY Vercel deployment (Production or Preview)
 app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "https://projecthub-client.vercel.app" 
-    ],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+        if (!origin) return callback(null, true);
+
+        const allowedOrigins = [
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "https://project-hub-mern-ct8u.vercel.app" // Your main production domain
+        ];
+
+        // Check if origin is in the allowed list OR if it is a Vercel preview/production URL
+        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+            callback(null, true);
+        } else {
+            console.log("Blocked by CORS:", origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true
 }));
 
-// Serve static files (Note: Vercel is stateless; local 'uploads' will not persist)
+// Serve static files
 app.use('/uploads', express.static('uploads'));
 
 // --- Routes ---
@@ -41,7 +53,7 @@ app.get('/', (req, res) => {
   res.json({ message: 'Hello from the ProjectHub Backend!' });
 });
 
-// Test route to verify Database connection in production
+// Test route
 app.get('/api/test', async (req, res) => {
   try {
     const userCount = await prisma.user.count();
@@ -58,7 +70,6 @@ app.get('/api/test', async (req, res) => {
 });
 
 // --- Vercel Serverless Export ---
-// Standard app.listen is ignored by Vercel; the export is what matters
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
