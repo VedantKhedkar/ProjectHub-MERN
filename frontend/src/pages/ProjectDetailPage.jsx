@@ -6,12 +6,16 @@ import ImageSlider from '../components/ImageSlider.jsx';
 import { toast } from 'react-hot-toast'; 
 import React from 'react'; 
 
-// API Endpoints
-const API_BASE_URL = 'http://localhost:5000/api/portfolio';
-const CREATE_ORDER_URL = 'http://localhost:5000/api/payment/create-order';
-const VERIFY_PAYMENT_URL = 'http://localhost:5000/api/payment/verify-payment';
-const RECEIPT_URL_BASE = 'http://localhost:5000/api/payment/receipt';
-const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; 
+// 🛠️ IMPORT the constants from your config file
+import { BASE_URL, RAZORPAY_KEY_ID } from '../config.js'; 
+
+// 🛠️ UPDATE Endpoints to use dynamic BASE_URL
+const API_BASE_URL = `${BASE_URL}/api/portfolio`;
+const CREATE_ORDER_URL = `${BASE_URL}/api/payment/create-order`;
+const VERIFY_PAYMENT_URL = `${BASE_URL}/api/payment/verify-payment`;
+const RECEIPT_URL_BASE = `${BASE_URL}/api/payment/receipt`;
+
+// RAZORPAY_KEY_ID is now also imported from config above
 
 function ProjectDetailPage() {
   const { id } = useParams();

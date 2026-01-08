@@ -5,7 +5,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
 // 1. Point to the /api prefix defined in your backend index.js
-const API_BASE_URL = 'http://localhost:5000/api';
+import { BASE_URL } from '../config'; // ✅ Use curly braces for named exports
+
+const API_URL = `${BASE_URL}/api/auth/login`;
 
 // 2. Create the instance to handle CORS credentials automatically
 const api = axios.create({
