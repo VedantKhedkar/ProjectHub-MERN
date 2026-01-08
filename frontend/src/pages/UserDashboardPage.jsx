@@ -12,12 +12,18 @@ import {
 } from 'lucide-react'; 
 
 // API endpoints
-const MY_PROJECTS_URL = 'http://localhost:5000/api/projects/my-projects';
-const CREATE_ORDER_URL = 'http://localhost:5000/api/payment/create-order';
-const VERIFY_PAYMENT_URL = 'http://localhost:5000/api/payment/verify-payment';
-const MY_PAYMENTS_URL = 'http://localhost:5000/api/projects/my-payments';
-const RECEIPT_URL_BASE = 'http://localhost:5000/api/payment/receipt';
-const RAZORPAY_KEY_ID = 'rzp_test_ReySia135ZQ7Zl'; 
+import { BASE_URL } from '../config';
+
+// API endpoints
+const MY_PROJECTS_URL = `${BASE_URL}/api/projects/my-projects`;
+const CREATE_ORDER_URL = `${BASE_URL}/api/payment/create-order`;
+const VERIFY_PAYMENT_URL = `${BASE_URL}/api/payment/verify-payment`;
+const MY_PAYMENTS_URL = `${BASE_URL}/api/projects/my-payments`;
+const RECEIPT_URL_BASE = `${BASE_URL}/api/payment/receipt`;
+
+// 🛠️ UPDATED: Import from environment variables
+// Use import.meta.env for Vite or process.env for Create React App
+const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || 'fallback_key_if_needed';
 
 // --- Progress Bar Component ---
 const ProgressBar = ({ percentage }) => (

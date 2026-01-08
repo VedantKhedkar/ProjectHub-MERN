@@ -40,7 +40,7 @@ const pdfStyles = StyleSheet.create({
 const getPdfUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http')) return path; 
-  return `http://localhost:5000${path}`;   
+  return `${BASE_URL}${path}`;   
 };
 
 // --- PDF DOCUMENT COMPONENT ---

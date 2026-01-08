@@ -15,21 +15,18 @@ const app = express();
 // 1. JSON Middleware
 app.use(express.json());
 
-// 2. CORS Configuration (The Fix)
-// This function automatically allows:
-// - Localhost (for development)
-// - ANY Vercel deployment (Production or Preview URLs)
+// 2. Optimized CORS Configuration
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://project-hub-mern-ct8u.vercel.app" // Your specific frontend
+];
+
 app.use(cors({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, or server-to-server calls)
+        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
 
-        const allowedOrigins = [
-            "http://localhost:5173",
-            "http://localhost:3000"
-        ];
-
-        // LOGIC: Allow if it's in our known list OR if it ends with .vercel.app
         if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
             callback(null, true);
         } else {
@@ -37,6 +34,8 @@ app.use(cors({
             callback(new Error('Not allowed by CORS'));
         }
     },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
     credentials: true
 }));
 

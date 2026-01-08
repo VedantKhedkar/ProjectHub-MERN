@@ -29,7 +29,7 @@ function ProjectDetailPage() {
     if (path.startsWith('http') || path.startsWith('https')) {
       return path;
     }
-    return `http://localhost:5000${path}`;
+   return `${BASE_URL}${path}`;
   };
 
   useEffect(() => {

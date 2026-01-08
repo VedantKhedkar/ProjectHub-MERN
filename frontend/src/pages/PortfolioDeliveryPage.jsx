@@ -3,12 +3,13 @@ import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { UploadCloud, Video, FileArchive, Image } from 'lucide-react';
+import { BASE_URL } from '../config'; // Ensure the path to config.js is correct
 
-// API Endpoints for PORTFOLIO file management
-const GET_PORTFOLIO_PROJECT_URL = 'http://localhost:5000/api/portfolio'; // We'll use /:id
-const ADMIN_UPLOAD_VIDEO_URL = 'http://localhost:5000/api/admin/portfolio/upload-video';
-const ADMIN_UPLOAD_CODE_URL = 'http://localhost:5000/api/admin/portfolio/upload-code';
-const ADMIN_UPLOAD_ASSETS_URL = 'http://localhost:5000/api/admin/portfolio/upload-assets';
+// API Endpoints for PORTFOLIO file management - Now dynamic
+const GET_PORTFOLIO_PROJECT_URL = `${BASE_URL}/api/portfolio`; 
+const ADMIN_UPLOAD_VIDEO_URL = `${BASE_URL}/api/admin/portfolio/upload-video`;
+const ADMIN_UPLOAD_CODE_URL = `${BASE_URL}/api/admin/portfolio/upload-code`;
+const ADMIN_UPLOAD_ASSETS_URL = `${BASE_URL}/api/admin/portfolio/upload-assets`;
 
 // --- Reusable Upload Form Component ---
 // This component handles the logic for a single file upload form
