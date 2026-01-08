@@ -4,8 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 
-// ✅ Fixed: Import BASE_URL from your central config
-import { BASE_URL } from '../config.js'; 
+import { BASE_URL } from '../config.js'; // ✅ This imports the specific named export
 
 // ✅ Fixed: Define the base API path for this specific instance
 const API_BASE_URL = `${BASE_URL}/api`;

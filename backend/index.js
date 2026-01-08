@@ -7,7 +7,6 @@ import adminRoutes from './routes/admin.js';
 import projectRoutes from './routes/project.js';
 import portfolioRoutes from './routes/portfolio.js';
 import paymentRoutes from './routes/payment.js'; 
-// IMPORT YOUR MODELS (Example: User) for health checks or testing
 import User from './models/User.js'; 
 
 dotenv.config(); 
@@ -17,23 +16,30 @@ const app = express();
 // 1. JSON Middleware
 app.use(express.json());
 
-// 2. Database Connection (Mongoose)
+// 2. Database Connection (Mongoose) - Added connection options for stability
 mongoose.connect(process.env.DATABASE_URL)
   .then(() => console.log("✅ MongoDB connected via Mongoose"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// 3. Optimized CORS Configuration
+// 3. 🚀 Improved CORS Configuration
 const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:3000",
     "https://project-hub-mern-ct8u.vercel.app",
-    "https://projecthub-frontend-a42vuwbkd-vedantkhedkars-projects.vercel.app"
+    "https://projecthub-frontend-a42vuwbkd-vedantkhedkars-projects.vercel.app",
+    "https://projecthub-frontend-4dfyf1bbn-vedantkhedkars-projects.vercel.app" // Added from your error log
 ];
 
 app.use(cors({
     origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+
+        // Check if origin is in our list OR is a Vercel preview/deployment URL
+        const isVercel = origin.endsWith('.vercel.app');
+        const isAllowed = allowedOrigins.includes(origin);
+
+        if (isAllowed || isVercel) {
             callback(null, true);
         } else {
             console.log("Blocked by CORS:", origin);
@@ -41,7 +47,7 @@ app.use(cors({
         }
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Api-Version'],
     credentials: true
 }));
 
@@ -60,10 +66,9 @@ app.get('/', (req, res) => {
     res.json({ message: 'Hello from the ProjectHub Backend! Status: Active' });
 });
 
-// 7. Database Connection Test (Updated to Mongoose)
+// 7. Database Connection Test
 app.get('/api/test', async (req, res) => {
     try {
-        // Using Mongoose countDocuments instead of Prisma count
         const userCount = await User.countDocuments();
         res.json({
             message: 'Database connection successful!',
