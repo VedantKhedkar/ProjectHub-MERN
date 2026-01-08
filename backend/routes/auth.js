@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken'; // Make sure this is imported
-import prisma from '../lib/prisma.js';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js'; // ✅ Replaced prisma import with Mongoose Model
 
 const router = express.Router();
 
@@ -14,9 +14,8 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email },
-    });
+    // REPLACE: prisma.user.findUnique -> User.findOne
+    const existingUser = await User.findOne({ email: email });
 
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists.' });
@@ -25,18 +24,17 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await prisma.user.create({
-      data: {
-        email: email,
-        password: hashedPassword,
-        contact: contact,
-      },
+    // REPLACE: prisma.user.create -> User.create
+    const newUser = await User.create({
+      email: email,
+      password: hashedPassword,
+      contact: contact,
     });
 
     res.status(201).json({
       message: 'User registered successfully. Your account is pending admin approval.',
       user: {
-        id: newUser.id,
+        id: newUser._id, // Mongoose uses _id
         email: newUser.email,
         status: newUser.status,
       },
@@ -50,12 +48,12 @@ router.post('/register', async (req, res) => {
 
 // --- LOGIN ---
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body; // Typo is fixed here
+  const { email, password } = req.body;
 
   try {
-    const user = await prisma.user.findUnique({
-      where: { email: email },
-    });
+    // REPLACE: prisma.user.findUnique -> User.findOne
+    const user = await User.findOne({ email: email });
+    
     if (!user) {
       return res.status(404).json({ message: 'Invalid credentials.' });
     }
@@ -73,7 +71,7 @@ router.post('/login', async (req, res) => {
 
     // Create JWT Token
     const token = jwt.sign(
-      { id: user.id },
+      { id: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
@@ -82,7 +80,7 @@ router.post('/login', async (req, res) => {
       message: 'Login successful!',
       token: token,
       user: {
-        id: user.id,
+        id: user._id,
         email: user.email,
         status: user.status,
       },
@@ -94,6 +92,4 @@ router.post('/login', async (req, res) => {
   }
 });
 
-
-// --- THIS IS THE MISSING LINE ---
 export default router;

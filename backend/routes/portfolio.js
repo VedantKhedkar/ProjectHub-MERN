@@ -1,13 +1,14 @@
 import express from 'express';
-import prisma from '../lib/prisma.js';
 import { verifyToken } from '../middleware/verifyToken.js';
-import { portfolioImageUpload } from '../upload/projectUpload.js'; // Cloudinary middleware
+import { portfolioImageUpload } from '../upload/projectUpload.js'; 
+import PortfolioProject from '../models/PortfolioProject.js'; // ✅ Replaced prisma import
 
 const router = express.Router();
 
-// Helper function to split comma-separated strings into an array
+// Helper function to split comma-separated strings into an array (Logic Unchanged)
 const stringToArray = (str) => {
     if (!str) return [];
+    if (Array.isArray(str)) return str;
     return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
 };
 
@@ -15,31 +16,30 @@ const stringToArray = (str) => {
 
 // GET /api/portfolio (UPDATED WITH SEARCH)
 router.get('/', async (req, res) => {
-    const { search } = req.query; // Extract search term
+    const { search } = req.query; 
 
     try {
-        let queryOptions = {
-            orderBy: { createdAt: 'desc' },
-        };
+        let filter = {};
 
-        // If a search term exists, filter the results
+        // If a search term exists, filter the results using Mongoose logic
         if (search) {
-            queryOptions.where = {
-                OR: [
-                    // 1. Search in Name (Case Insensitive)
-                    { name: { contains: search, mode: 'insensitive' } },
+            const searchRegex = new RegExp(search, 'i'); // Case-insensitive regex
+            filter = {
+                $or: [
+                    // 1. Search in Name (Regex replaces Prisma 'contains')
+                    { name: searchRegex },
                     
-                    // 2. Search in Description (Case Insensitive)
-                    { description: { contains: search, mode: 'insensitive' } },
+                    // 2. Search in Description
+                    { description: searchRegex },
                     
-                    // 3. Search in Tech Stacks (Exact Match in Array)
-                    // Note: This checks if the array contains the exact string
-                    { techStacks: { has: search } } 
+                    // 3. Search in Tech Stacks (Mongoose handles array search automatically)
+                    { techStacks: searchRegex } 
                 ]
             };
         }
 
-        const projects = await prisma.portfolioProject.findMany(queryOptions);
+        // Mongoose 'find' with 'sort' replaces Prisma 'findMany' with 'orderBy'
+        const projects = await PortfolioProject.find(filter).sort({ createdAt: -1 });
         res.status(200).json(projects);
     } catch (error) {
         console.error('Get Portfolio Error:', error);
@@ -52,9 +52,8 @@ router.get('/:id', async (req, res) => {
     const { id } = req.params;
 
     try {
-        const project = await prisma.portfolioProject.findUnique({
-            where: { id: id },
-        });
+        // findById replaces findUnique
+        const project = await PortfolioProject.findById(id);
 
         if (!project) {
             return res.status(404).json({ message: 'Project not found.' });
@@ -73,7 +72,6 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
     const projectData = req.body;
     const files = req.files;
 
-    // Extract fields
     const { name, description, demoUrl, price } = projectData; 
 
     if (!name || !description || !projectData.techStacks || !demoUrl || !price) {
@@ -83,23 +81,21 @@ router.post('/', verifyToken, portfolioImageUpload, async (req, res) => {
     try {
         let imageUrls = [];
 
-        // Use file.path (Cloudinary URL)
         if (files && files.length > 0) {
             imageUrls = files.map(file => file.path);
         } else {
             return res.status(400).json({ message: 'At least one image is required for the portfolio.' });
         }
 
-        const newPortfolioProject = await prisma.portfolioProject.create({
-            data: {
-                name,
-                description,
-                demoUrl,
-                price, 
-                features: stringToArray(projectData.features),
-                techStacks: stringToArray(projectData.techStacks),
-                imageUrls, 
-            },
+        // Model.create replaces prisma.create
+        const newPortfolioProject = await PortfolioProject.create({
+            name,
+            description,
+            demoUrl,
+            price, 
+            features: stringToArray(projectData.features),
+            techStacks: stringToArray(projectData.techStacks),
+            imageUrls, 
         });
 
         res.status(201).json({
@@ -134,20 +130,22 @@ router.patch('/:id', verifyToken, portfolioImageUpload, async (req, res) => {
             techStacks: stringToArray(projectData.techStacks),
         };
 
-        // Handle Image Update (Cloudinary)
         if (files && files.length > 0) {
-            // New files uploaded -> Use Cloudinary URLs
-            const uploadedPaths = files.map(file => file.path);
-            updateData.imageUrls = uploadedPaths;
+            updateData.imageUrls = files.map(file => file.path);
         } else if (projectData.imageUrls) {
-            // No new files -> Keep existing URLs
             updateData.imageUrls = stringToArray(projectData.imageUrls);
         }
 
-        const updatedProject = await prisma.portfolioProject.update({
-            where: { id: id },
-            data: updateData, 
-        });
+        // findByIdAndUpdate replaces prisma.update
+        const updatedProject = await PortfolioProject.findByIdAndUpdate(
+            id, 
+            updateData, 
+            { new: true } // {new: true} ensures the updated document is returned
+        );
+
+        if (!updatedProject) {
+            return res.status(404).json({ message: 'Project not found.' });
+        }
 
         res.status(200).json({
             message: 'Portfolio project updated successfully.',
@@ -155,9 +153,6 @@ router.patch('/:id', verifyToken, portfolioImageUpload, async (req, res) => {
         });
     } catch (error) {
         console.error('Update Portfolio Error:', error);
-        if (error.code === 'P2025') {
-            return res.status(404).json({ message: 'Project not found.' });
-        }
         res.status(500).json({ message: 'Internal server error.' });
     }
 });
@@ -168,18 +163,17 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
 
     try {
-        // Only delete the database record (Files remain in Cloudinary or can be deleted via separate Admin tool)
-        await prisma.portfolioProject.delete({
-            where: { id: id },
-        });
+        // findByIdAndDelete replaces prisma.delete
+        const deletedProject = await PortfolioProject.findByIdAndDelete(id);
+
+        if (!deletedProject) {
+            return res.status(404).json({ message: 'Project not found.' });
+        }
 
         res.status(200).json({ message: 'Portfolio project deleted successfully.' });
 
     } catch (error) {
         console.error('Delete Portfolio Error:', error);
-        if (error.code === 'P2025') {
-            return res.status(404).json({ message: 'Project not found.' });
-        }
         res.status(500).json({ message: 'Internal server error.' });
     }
 });
