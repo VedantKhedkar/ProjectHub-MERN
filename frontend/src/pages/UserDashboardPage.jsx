@@ -1,3 +1,4 @@
+"use client";
 import { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -11,19 +12,15 @@ import {
     Search, ChevronLeft, ChevronRight, ChevronDown, ChevronUp 
 } from 'lucide-react'; 
 
-// API endpoints
-import { BASE_URL } from '../config';
+// ✅ Corrected Imports: Named exports from your config file
+import { BASE_URL, RAZORPAY_KEY_ID } from '../config.js'; 
 
-// API endpoints
+// API endpoints - Using dynamic BASE_URL
 const MY_PROJECTS_URL = `${BASE_URL}/api/projects/my-projects`;
 const CREATE_ORDER_URL = `${BASE_URL}/api/payment/create-order`;
 const VERIFY_PAYMENT_URL = `${BASE_URL}/api/payment/verify-payment`;
 const MY_PAYMENTS_URL = `${BASE_URL}/api/projects/my-payments`;
 const RECEIPT_URL_BASE = `${BASE_URL}/api/payment/receipt`;
-
-// 🛠️ UPDATED: Import from environment variables
-// Use import.meta.env for Vite or process.env for Create React App
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || 'fallback_key_if_needed';
 
 // --- Progress Bar Component ---
 const ProgressBar = ({ percentage }) => (
@@ -76,7 +73,7 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
       toast.dismiss(toastId); 
 
       const options = {
-        key: RAZORPAY_KEY_ID, 
+        key: RAZORPAY_KEY_ID, // ✅ Pulls from VITE_RAZORPAY_KEY_ID via config
         amount: order.amount,
         currency: "INR",
         name: "ProjectHub",
@@ -143,7 +140,6 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
         variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
         className="bg-slate-800/40 backdrop-blur-md p-6 rounded-2xl border border-slate-700/50 shadow-xl hover:shadow-2xl hover:border-blue-500/30 transition-all group"
     >
-      {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
             <h3 className="text-xl font-bold text-white mb-1 group-hover:text-blue-400 transition-colors tracking-tight">{project.projectName}</h3>
@@ -157,7 +153,6 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
         </span>
       </div>
       
-      {/* Progress Section */}
       {project.status === 'In Progress' && (
         <div className="mb-6 bg-slate-900/40 p-5 rounded-xl border border-slate-700/50">
           <div className="flex justify-between text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -168,7 +163,6 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
         </div>
       )}
 
-      {/* Payment Status Pill */}
       {project.paymentStatus !== "Not Quoted" && (
          <div className="mb-5">
             <span className={`px-3 py-1.5 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide rounded-lg border 
@@ -179,7 +173,6 @@ const ProjectTrackerCard = ({ project, token, user, onPaymentSuccess }) => {
          </div>
       )}
 
-      {/* Payment Actions Grid */}
       <div className="space-y-3 pt-2">
         {project.status === "Quote Sent - Awaiting 50% Payment" && !hasPaidInitial && (
             <motion.div 
@@ -298,7 +291,6 @@ const TransactionHistory = ({ token, refreshTrigger }) => {
         viewport={{ once: true }}
         className="bg-slate-800/40 backdrop-blur-md rounded-2xl border border-slate-700/50 overflow-hidden shadow-2xl flex flex-col h-full"
     >
-        {/* Toolbar */}
         <div className="px-6 py-5 border-b border-slate-700/50 bg-slate-800/30 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/10 rounded-lg"><FileText size={20} className="text-blue-500"/></div>
@@ -317,7 +309,6 @@ const TransactionHistory = ({ token, refreshTrigger }) => {
             </div>
         </div>
         
-        {/* Table */}
         <div className="overflow-x-auto flex-grow min-h-[300px]"> 
             <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-400 uppercase bg-slate-900/30 border-b border-slate-700/50">
@@ -364,7 +355,6 @@ const TransactionHistory = ({ token, refreshTrigger }) => {
             </table>
         </div>
 
-        {/* Footer */}
         {filteredPayments.length > ITEMS_PER_PAGE && (
             <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-800/30 flex justify-between items-center">
                 <span className="text-xs text-slate-500">
@@ -416,13 +406,11 @@ function UserDashboardPage() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-300 p-6 md:p-12 relative overflow-x-hidden">
       
-      {/* Background Animated Blobs */}
       <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.3, 0.1] }} transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }} className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-600/10 blur-[150px] rounded-full pointer-events-none" />
       <motion.div animate={{ x: [-50, 50, -50], opacity: [0.1, 0.2, 0.1] }} transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }} className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/10 blur-[150px] rounded-full pointer-events-none" />
 
       <div className="max-w-6xl mx-auto space-y-12 relative z-10">
         
-        {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="flex flex-col md:flex-row md:items-end justify-between border-b border-slate-700/50 pb-8 gap-6">
             <div>
                 <h1 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight flex items-center gap-3">
@@ -438,7 +426,6 @@ function UserDashboardPage() {
             </Link>
         </motion.div>
 
-        {/* Active Projects Grid */}
         <section>
           <div className="flex items-center justify-between mb-8">
              <div className="flex items-center gap-4">
@@ -446,7 +433,6 @@ function UserDashboardPage() {
                  {myProjects.length > 0 && <span className="bg-slate-800/50 text-slate-300 px-4 py-1.5 rounded-full text-xs font-bold border border-slate-700">{myProjects.length} Projects</span>}
              </div>
 
-             {/* View All Toggle */}
              {myProjects.length > INITIAL_PROJECT_LIMIT && (
                 <button onClick={() => setShowAllProjects(!showAllProjects)} className="flex items-center gap-2 text-sm font-bold text-blue-400 hover:text-white transition-colors group">
                     {showAllProjects ? 'Show Less' : 'View All'}
@@ -461,7 +447,6 @@ function UserDashboardPage() {
              </div>
           ) : myProjects.length > 0 ? (
             <motion.div 
-                // CRITICAL FIX: Forces re-render/re-animate when toggle changes
                 key={showAllProjects ? 'all' : 'limited'} 
                 initial="hidden" 
                 animate="visible" 
@@ -481,7 +466,6 @@ function UserDashboardPage() {
           )}
         </section>
         
-        {/* Transaction History (Smart Widget) */}
         <TransactionHistory token={token} refreshTrigger={refreshTrigger} />
         
       </div>
