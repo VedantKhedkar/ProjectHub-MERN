@@ -19,7 +19,9 @@ app.use(express.json());
 const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:3000",
-    "https://project-hub-mern-ct8u.vercel.app" // Your specific frontend
+    "https://project-hub-mern-ct8u.vercel.app",
+    // Adding the specific preview URL that was blocked
+    "https://projecthub-frontend-a42vuwbkd-vedantkhedkars-projects.vercel.app"
 ];
 
 app.use(cors({
@@ -27,6 +29,7 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps or curl)
         if (!origin) return callback(null, true);
 
+        // Check if origin is in our list OR is a Vercel deployment
         if (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
             callback(null, true);
         } else {
