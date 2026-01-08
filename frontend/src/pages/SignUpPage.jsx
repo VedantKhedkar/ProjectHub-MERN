@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import BASE_URL from '../config';
+// ✅ Corrected: Import BASE_URL using curly braces for named exports
+import { BASE_URL } from '../config';
 
 const API_URL = `${BASE_URL}/api/auth/register`;
 
@@ -31,11 +32,13 @@ function SignUpPage() {
       
       setMessage(response.data.message); 
       
+      // Redirect to login after successful registration
       setTimeout(() => {
         navigate('/login');
       }, 3000);
 
     } catch (err) {
+      // Improved error handling for production
       setError(err.response?.data?.message || 'An unknown error occurred.');
       setMessage('');
     }
@@ -46,7 +49,6 @@ function SignUpPage() {
   const labelClass = "block text-sm font-medium text-slate-300";
 
   return (
-    // Global Deep Background
     <div className="flex justify-center items-center min-h-screen bg-[#0f172a] p-4 font-sans">
       
       {/* Card Container */}
@@ -69,7 +71,7 @@ function SignUpPage() {
             </div>
         )}
         {error && (
-            <div className="bg-red-900/20 border border-red-900/50 p-3 rounded-lg text-center">
+            <div className="bg-red-900/20 border border-red-900/50 p-3 rounded-lg text-center animate-pulse">
                 <p className="text-red-400 text-sm font-semibold">{error}</p>
             </div>
         )}
@@ -135,7 +137,7 @@ function SignUpPage() {
                     Log in here
                 </Link>
             </p>
-            <p className="text-xs text-slate-500 mt-4">
+            <p className="text-xs text-slate-500 mt-4 italic">
                 Note: New accounts require admin approval before full access is granted.
             </p>
         </div>
